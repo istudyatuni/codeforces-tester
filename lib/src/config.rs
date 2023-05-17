@@ -28,14 +28,13 @@ pub(crate) struct Settings {
 
 #[derive(Debug, Deserialize)]
 /// Available placeholders:
-///
 /// - `{id}` - task id
 struct BuildSettings {
     /// Build command (optional)
     build: Option<String>,
     /// Run command
     run: String,
-    /// Working directory for running commands
+    /// Working directory for executing commands, can be absolute or relative
     cwd: Option<PathBuf>,
 }
 

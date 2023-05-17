@@ -1,0 +1,24 @@
+# available placeholders for commands:
+# - {id} - task id
+[settings.build]
+# optinal, command to build program
+build = "clang++ --std=c++17 -fsanitize=address -O3 {id}.cpp -o {id}.out"
+# command to run program
+run = "./{id}.out"
+# optional, working directory for executing commands, can be absolute or relative
+cwd = "solutions"
+
+# "a" is id of task, used in "cdf test [id]"
+[tasks.a]
+# name of task
+name = "Squares and rectangles"
+
+[[tasks.a.tests]]
+# input to pass to program
+input = """
+2
+0 0 2 2
+1 1 3 3
+"""
+# expected output from program
+expected = "1"

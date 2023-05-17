@@ -7,7 +7,7 @@ use lib::TaskID;
 #[command(author, version, about, long_about = None)]
 pub(crate) struct Cli {
     #[arg(long, default_value = "cdf.toml")]
-    /// Path to config. Default is "cdf.toml" in current directory
+    /// Path to config
     config: PathBuf,
 
     #[command(subcommand)]
