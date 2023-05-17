@@ -1,0 +1,8 @@
+[package]
+name = "codeforces-tester-gui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gtk = { version = "0.6.6", package = "gtk4", features = ["v4_10"] }
+lib = { path = "../lib", package = "codeforces-tester-lib" }

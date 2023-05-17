@@ -1,0 +1,13 @@
+[package]
+name = "codeforces-tester-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = "1.0.71"
+clap = { version = "4.2.7", features = ["derive"] }
+lib = { path = "../lib", package = "codeforces-tester-lib" }
+
+[[bin]]
+name = "cdf"
+path = "src/main.rs"
