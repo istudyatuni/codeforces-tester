@@ -7,6 +7,25 @@ use std::{
 
 use crate::{Error, Result};
 
+#[derive(Debug)]
+struct CommandConfig {
+    name: String,
+    args: Vec<String>,
+    cwd: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct CommandOutput {
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
+}
+
+impl CommandOutput {
+    fn new(stdout: String, stderr: String) -> Self {
+        Self { stdout, stderr }
+    }
+}
+
 pub(crate) fn exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<()> {
     let conf = prepare_exec(cmd, cwd)?;
     let status = Command::new(conf.name)
@@ -29,18 +48,19 @@ pub(crate) fn exec_with_io<S: Into<String>>(
     cmd: S,
     input: S,
     cwd: &Option<PathBuf>,
-) -> Result<String> {
+) -> Result<CommandOutput> {
     let conf = prepare_exec(cmd, cwd)?;
     let child = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(Error::CannotCreateCommand)?;
     let mut stdin = child.stdin.expect("cannot get stdin");
     let mut stdout = child.stdout.expect("cannot get stdout");
+    let mut stderr = child.stderr.expect("cannot get stderr");
     let input: String = input.into();
 
     stdin
@@ -52,8 +72,12 @@ pub(crate) fn exec_with_io<S: Into<String>>(
     stdout
         .read_to_string(&mut output)
         .map_err(Error::CannotReadFromStdout)?;
+    let mut err_output = String::new();
+    stderr
+        .read_to_string(&mut err_output)
+        .map_err(Error::CannotReadFromStderr)?;
 
-    Ok(output)
+    Ok(CommandOutput::new(output, err_output))
 }
 
 fn prepare_exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<CommandConfig> {
@@ -80,11 +104,4 @@ fn prepare_exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<Comman
         args: cmd.skip(1).map(Into::into).collect(),
         cwd,
     })
-}
-
-#[derive(Debug)]
-struct CommandConfig {
-    name: String,
-    args: Vec<String>,
-    cwd: PathBuf,
 }

@@ -5,7 +5,7 @@ use std::{collections::HashMap, path::PathBuf, process::Command};
 use serde::Deserialize;
 
 use crate::{
-    exec::{exec, exec_with_io},
+    exec::{exec, exec_with_io, CommandOutput},
     Result, TaskID,
 };
 
@@ -79,8 +79,8 @@ impl Config {
                 test.input.clone(),
                 &self.settings.build.cwd,
             )?;
-            if output.trim() != test.expected.trim() {
-                failed.push(FailedTest::new(i + 1, &test.expected, &output));
+            if output.stdout.trim() != test.expected.trim() {
+                failed.push(FailedTest::new(i + 1, &test.expected, output));
                 print!("x");
             } else {
                 print!(".");
@@ -94,9 +94,12 @@ impl Config {
         println!("\n\nFailed tests:\n");
         for f in failed {
             println!(
-                "test {}\nExpected output:\n{}\nActual output:\n{}",
-                f.index, f.expected, f.actual
+                "-- test {} --\nExpected output:\n{}\nActual output:\n{}",
+                f.index, f.expected, f.cmd_output.stdout
             );
+            if !f.cmd_output.stderr.is_empty() {
+                println!("Stderr:\n{}", f.cmd_output.stderr);
+            }
         }
 
         Ok(())
@@ -107,15 +110,15 @@ impl Config {
 struct FailedTest {
     index: usize,
     expected: String,
-    actual: String,
+    cmd_output: CommandOutput,
 }
 
 impl FailedTest {
-    fn new<S: Into<String>>(index: usize, expected: S, actual: S) -> Self {
+    fn new<S: Into<String>>(index: usize, expected: S, cmd_output: CommandOutput) -> Self {
         Self {
             index,
             expected: expected.into(),
-            actual: actual.into(),
+            cmd_output,
         }
     }
 }

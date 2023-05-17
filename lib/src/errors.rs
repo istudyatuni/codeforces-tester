@@ -15,6 +15,8 @@ pub enum Error {
     CannotWriteToStdin(std::io::Error),
     #[error("cannot read from stdout: {0}")]
     CannotReadFromStdout(std::io::Error),
+    #[error("cannot read from stderr: {0}")]
+    CannotReadFromStderr(std::io::Error),
     #[error("cannot get current directory: {0}")]
     CannotGetCwd(std::io::Error),
 
