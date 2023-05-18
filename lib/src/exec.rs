@@ -26,14 +26,16 @@ impl CommandOutput {
     }
 }
 
-pub(crate) fn exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<()> {
-    let conf = prepare_exec(cmd, cwd)?;
+pub(crate) fn exec<S>(cmd: S, cwd: &Option<PathBuf>) -> Result<()>
+where
+    S: Into<String> + Clone,
+{
+    let conf = prepare_exec(cmd.clone(), cwd)?;
     let status = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
-        .stderr(Stdio::null())
         .status()
-        .map_err(Error::CannotCreateCommand)?;
+        .map_err(|e| Error::CannotCreateCommand(cmd.into(), e))?;
     if status.success() {
         return Ok(());
     }
@@ -44,12 +46,11 @@ pub(crate) fn exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<()>
     }
 }
 
-pub(crate) fn exec_with_io<S: Into<String>>(
-    cmd: S,
-    input: S,
-    cwd: &Option<PathBuf>,
-) -> Result<CommandOutput> {
-    let conf = prepare_exec(cmd, cwd)?;
+pub(crate) fn exec_with_io<S>(cmd: S, input: S, cwd: &Option<PathBuf>) -> Result<CommandOutput>
+where
+    S: Into<String> + Clone,
+{
+    let conf = prepare_exec(cmd.clone(), cwd)?;
     let child = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
@@ -57,7 +58,7 @@ pub(crate) fn exec_with_io<S: Into<String>>(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(Error::CannotCreateCommand)?;
+        .map_err(|e| Error::CannotCreateCommand(cmd.into(), e))?;
     let mut stdin = child.stdin.expect("cannot get stdin");
     let mut stdout = child.stdout.expect("cannot get stdout");
     let mut stderr = child.stderr.expect("cannot get stderr");

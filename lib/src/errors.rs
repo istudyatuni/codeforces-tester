@@ -9,8 +9,8 @@ pub enum Error {
     #[error("command terminated")]
     CommandTerminated,
 
-    #[error("cannot create command: {0}")]
-    CannotCreateCommand(std::io::Error),
+    #[error("cannot create command \"{0}\": {1}")]
+    CannotCreateCommand(String, std::io::Error),
     #[error("cannot write to stdin: {0}")]
     CannotWriteToStdin(std::io::Error),
     #[error("cannot read from stdout: {0}")]

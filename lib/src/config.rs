@@ -62,16 +62,16 @@ impl Config {
             return Ok(());
         }
 
-        let pretty_name = format!("\"{id} - {}\"", task.name);
+        println!("Task {} - {}", id.to_uppercase(), task.name);
 
         // build
         if let Some(build) = &self.settings.build.build {
-            println!("Building {pretty_name}");
+            println!("Building");
             exec(build.replace("{id}", &id), &self.settings.build.cwd)?;
         }
 
         // test
-        println!("Testing {pretty_name} ");
+        println!("Testing");
         let mut failed = vec![];
         for (i, test) in task.tests.iter().enumerate() {
             let output = exec_with_io(
@@ -94,7 +94,7 @@ impl Config {
         println!("\n\nFailed tests:\n");
         for f in failed {
             println!(
-                "-- test {} --\nExpected output:\n{}\nActual output:\n{}",
+                "-- test {} --\nExpected output:\n{}\n\nActual output:\n{}",
                 f.index, f.expected, f.cmd_output.stdout
             );
             if !f.cmd_output.stderr.is_empty() {
