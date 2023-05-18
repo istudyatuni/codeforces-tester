@@ -15,9 +15,9 @@ struct CommandConfig {
 }
 
 #[derive(Debug)]
-pub(crate) struct CommandOutput {
-    pub(crate) stdout: String,
-    pub(crate) stderr: String,
+pub struct CommandOutput {
+    pub stdout: String,
+    pub stderr: String,
 }
 
 impl CommandOutput {

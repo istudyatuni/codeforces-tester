@@ -5,7 +5,7 @@ use clap::Parser;
 
 use args::{Cli, Commands};
 use input::{read_line_with_prompt, read_until_eof_with_prompt};
-use lib::Config;
+use lib::{Config, FailedTest, TaskID, TestResult};
 
 mod args;
 mod input;
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
             config.save_config_to(config_path.clone())?;
             println!("Saved to {}", config_path.display());
         }
-        Commands::Test { id } => config.run_task_tests(id)?,
+        Commands::Test { id } => run_task_tests(&config, id)?,
         Commands::Format => config.save_config_to(config_path)?,
     }
 
@@ -53,4 +53,48 @@ fn ask_and_add_task(config: &mut Config) -> Result<()> {
     let expected = read_until_eof_with_prompt(&prompt)?;
     config.add_test_to_task(id, name, input, expected);
     Ok(())
+}
+
+fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
+    config.check_task(&id)?;
+    println!(
+        "Task {} - {}",
+        id.to_uppercase(),
+        config.get_task_name(&id).unwrap_or("unnamed task".into())
+    );
+    if config.shold_build(&id) {
+        println!("Building");
+        config.build(&id)?;
+    }
+    println!("Testing");
+    let mut failed = vec![];
+    for res in config.tests(&id) {
+        match res as TestResult {
+            TestResult::Ok => print!("."),
+            TestResult::Failed(f) => {
+                print!("x");
+                failed.push(f);
+            }
+            TestResult::Err(e) => return Err(e.into()),
+        }
+    }
+    if !failed.is_empty() {
+        println!(" failed\n");
+        failed.iter().for_each(print_failed_test);
+    } else {
+        println!(" ok");
+    }
+
+    Ok(())
+}
+
+fn print_failed_test(f: &FailedTest) {
+    let mut stderr = String::new();
+    if !f.cmd_output.stderr.is_empty() {
+        stderr = format!("\nStderr:\n{}", f.cmd_output.stderr);
+    }
+    println!(
+        "-- test {} --\nExpected output:\n{}\n\nActual output:\n{}{stderr}",
+        f.index, f.expected, f.cmd_output.stdout
+    );
 }

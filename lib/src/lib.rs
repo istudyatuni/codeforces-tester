@@ -2,8 +2,8 @@ mod config;
 mod errors;
 mod exec;
 
-pub use config::Config;
-
+pub use config::{Config, FailedTest, TestResult};
 pub use errors::{Error, Result};
+pub use exec::CommandOutput;
 
 pub type TaskID = String;

@@ -7,7 +7,7 @@ use crate::{
     Error, Result, TaskID,
 };
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct Test {
     input: String,
     expected: String,
@@ -60,56 +60,46 @@ impl TryFrom<&str> for Config {
 }
 
 impl Config {
-    pub fn run_task_tests(&self, id: TaskID) -> Result<()> {
-        let Some(task) = self.tasks.get(&id) else {
-            return Err(crate::Error::TaskNotFound(id));
+    pub fn check_task(&self, id: &TaskID) -> Result<()> {
+        let Some(task) = self.tasks.get(id) else {
+            return Err(crate::Error::TaskNotFound(id.clone()));
         };
         if task.tests.is_empty() {
-            println!("No tests for task");
-            return Ok(());
+            return Err(Error::TaskHasNoTests(id.clone()));
         }
-
-        println!("Task {} - {}", id.to_uppercase(), task.name);
-
-        // build
-        if let Some(build) = &self.settings.build.build {
-            println!("Building");
-            exec(build.replace("{id}", &id), &self.settings.build.cwd)?;
-        }
-
-        // test
-        println!("Testing");
-        let mut failed = vec![];
-        for (i, test) in task.tests.iter().enumerate() {
-            let output = exec_with_io(
-                self.settings.build.run.replace("{id}", &id),
-                test.input.clone(),
-                &self.settings.build.cwd,
-            )?;
-            if output.stdout.trim() != test.expected.trim() {
-                failed.push(FailedTest::new(i + 1, &test.expected, output));
-                print!("x");
-            } else {
-                print!(".");
-            };
-        }
-        if failed.is_empty() {
-            println!(" ok");
-            return Ok(());
-        }
-
-        println!("\n\nFailed tests:\n");
-        for f in failed {
-            println!(
-                "-- test {} --\nExpected output:\n{}\n\nActual output:\n{}",
-                f.index, f.expected, f.cmd_output.stdout
-            );
-            if !f.cmd_output.stderr.is_empty() {
-                println!("Stderr:\n{}", f.cmd_output.stderr);
-            }
-        }
-
         Ok(())
+    }
+    pub fn shold_build(&self, _id: &TaskID) -> bool {
+        self.settings.build.build.is_some()
+    }
+    pub fn build(&self, id: &TaskID) -> Result<()> {
+        if let Some(build) = &self.settings.build.build {
+            exec(build.replace("{id}", id), &self.settings.build.cwd)?;
+        }
+        Ok(())
+    }
+    pub fn tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
+        let tests = self
+            .tasks
+            .get(id)
+            .map(|t| t.tests.clone())
+            .unwrap_or_default();
+        tests.into_iter().enumerate().map(|(i, test)| {
+            let output = exec_with_io(
+                self.settings.build.run.replace("{id}", id),
+                test.input,
+                &self.settings.build.cwd,
+            );
+            let output = match output {
+                Ok(c) => c,
+                Err(e) => return TestResult::Err(e),
+            };
+            if output.stdout.trim() != test.expected.trim() {
+                TestResult::Failed(FailedTest::new(i, test.expected, output))
+            } else {
+                TestResult::Ok
+            }
+        })
     }
     pub fn get_task_name(&self, id: &TaskID) -> Option<String> {
         self.tasks.get(id).map(|t| t.name.clone())
@@ -129,10 +119,17 @@ impl Config {
 }
 
 #[derive(Debug)]
-struct FailedTest {
-    index: usize,
-    expected: String,
-    cmd_output: CommandOutput,
+pub enum TestResult {
+    Ok,
+    Failed(FailedTest),
+    Err(Error),
+}
+
+#[derive(Debug)]
+pub struct FailedTest {
+    pub index: usize,
+    pub expected: String,
+    pub cmd_output: CommandOutput,
 }
 
 impl FailedTest {

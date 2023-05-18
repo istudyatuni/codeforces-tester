@@ -26,6 +26,8 @@ pub enum Error {
 
     #[error("task \"{0}\" not found")]
     TaskNotFound(String),
+    #[error("no tests for task \"{0}\"")]
+    TaskHasNoTests(String),
 
     #[error("error serializing toml: {0}")]
     TomlSerialization(#[from] toml::ser::Error),
