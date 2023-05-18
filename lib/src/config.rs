@@ -1,32 +1,39 @@
-#![allow(unused)]
+use std::{collections::BTreeMap, fs::write as write_file, path::PathBuf};
 
-use std::{collections::HashMap, path::PathBuf, process::Command};
-
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     exec::{exec, exec_with_io, CommandOutput},
-    Result, TaskID,
+    Error, Result, TaskID,
 };
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct Test {
+#[derive(Debug, Deserialize, Serialize)]
+struct Test {
     input: String,
     expected: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct Task {
+impl Test {
+    fn new<S: Into<String>>(input: S, expected: S) -> Self {
+        Self {
+            input: input.into(),
+            expected: expected.into(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct Task {
     name: String,
     tests: Vec<Test>,
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct Settings {
+#[derive(Debug, Deserialize, Serialize)]
+struct Settings {
     build: BuildSettings,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 /// Available placeholders:
 /// - `{id}` - task id
 struct BuildSettings {
@@ -38,10 +45,10 @@ struct BuildSettings {
     cwd: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     settings: Settings,
-    tasks: HashMap<TaskID, Task>,
+    tasks: BTreeMap<TaskID, Task>,
 }
 
 impl TryFrom<&str> for Config {
@@ -53,7 +60,7 @@ impl TryFrom<&str> for Config {
 }
 
 impl Config {
-    pub fn run_task_tests(&self, id: String) -> Result<()> {
+    pub fn run_task_tests(&self, id: TaskID) -> Result<()> {
         let Some(task) = self.tasks.get(&id) else {
             return Err(crate::Error::TaskNotFound(id));
         };
@@ -103,6 +110,21 @@ impl Config {
         }
 
         Ok(())
+    }
+    pub fn get_task_name(&self, id: &TaskID) -> Option<String> {
+        self.tasks.get(id).map(|t| t.name.clone())
+    }
+    pub fn add_test_to_task<S>(&mut self, id: TaskID, name: S, input: S, expected: S)
+    where
+        S: Into<String>,
+    {
+        let task = self.tasks.entry(id).or_default();
+        task.name = name.into();
+        task.tests.push(Test::new(input, expected));
+    }
+    pub fn save_config_to(&self, path: PathBuf) -> Result<()> {
+        let content = toml::to_string_pretty(self)?;
+        write_file(path, content.as_bytes()).map_err(Error::CannotSaveConfig)
     }
 }
 

@@ -1,3 +1,5 @@
+use std::io::Error as IOError;
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
@@ -10,16 +12,21 @@ pub enum Error {
     CommandTerminated,
 
     #[error("cannot create command \"{0}\": {1}")]
-    CannotCreateCommand(String, std::io::Error),
+    CannotCreateCommand(String, IOError),
+    #[error("cannot save config: {0}")]
+    CannotSaveConfig(IOError),
     #[error("cannot write to stdin: {0}")]
-    CannotWriteToStdin(std::io::Error),
+    CannotWriteToStdin(IOError),
     #[error("cannot read from stdout: {0}")]
-    CannotReadFromStdout(std::io::Error),
+    CannotReadFromStdout(IOError),
     #[error("cannot read from stderr: {0}")]
-    CannotReadFromStderr(std::io::Error),
+    CannotReadFromStderr(IOError),
     #[error("cannot get current directory: {0}")]
-    CannotGetCwd(std::io::Error),
+    CannotGetCwd(IOError),
 
     #[error("task \"{0}\" not found")]
     TaskNotFound(String),
+
+    #[error("error serializing toml: {0}")]
+    TomlSerialization(#[from] toml::ser::Error),
 }

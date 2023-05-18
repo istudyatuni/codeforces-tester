@@ -11,7 +11,7 @@ pub(crate) struct Cli {
     config: PathBuf,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    pub(crate) command: Option<Commands>,
 }
 
 impl Cli {
@@ -22,17 +22,11 @@ impl Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Commands {
-    /// Add new task (not implemented)
+    /// Add a new task
     Add,
     /// Run test by its id
     Test { id: TaskID },
-}
-
-impl Cli {
-    pub(crate) fn test_id(&self) -> Option<TaskID> {
-        if let Some(Commands::Test { id }) = &self.command {
-            return Some(id.into());
-        }
-        None
-    }
+    /// Format config file
+    #[clap(name = "fmt")]
+    Format,
 }
