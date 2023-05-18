@@ -95,6 +95,6 @@ fn print_failed_test(f: &FailedTest) {
     }
     println!(
         "-- test {} --\nExpected output:\n{}\n\nActual output:\n{}{stderr}",
-        f.index, f.expected, f.cmd_output.stdout
+        f.index + 1, f.expected, f.cmd_output.stdout
     );
 }

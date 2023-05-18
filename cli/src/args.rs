@@ -24,8 +24,11 @@ impl Cli {
 pub(crate) enum Commands {
     /// Add a new task
     Add,
-    /// Run test by its id
-    Test { id: TaskID },
+    /// Run test for specific task
+    Test {
+        /// Test id
+        id: TaskID
+    },
     /// Format config file
     #[clap(name = "fmt")]
     Format,
