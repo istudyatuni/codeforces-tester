@@ -26,9 +26,8 @@ fn main() -> Result<(), eframe::Error> {
             ctx.egui_ctx.set_pixels_per_point(GUI_SCALE);
             let config_path = ctx
                 .storage
-                .map(|s| s.get_string(CONFIG_PATH_STORAGE_KEY))
-                .flatten()
-                .map(|p| p.into());
+                .and_then(|s| s.get_string(CONFIG_PATH_STORAGE_KEY))
+                .map(Into::into);
             Box::new(App::new(config_path))
         }),
     )

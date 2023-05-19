@@ -7,7 +7,7 @@ pub(crate) struct AddTaskState {
 }
 
 fn add_task_ui(ui: &mut Ui, state: &mut AddTaskState) -> Response {
-    ui.heading(format!("Add task:"));
+    ui.heading("Add task:");
     ui.horizontal(|ui| {
         let id_label = ui.label("ID:");
         ui.text_edit_singleline(&mut state.id)

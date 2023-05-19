@@ -75,7 +75,7 @@ impl eframe::App for App {
                     }
 
                     if let Some(config) = &self.config {
-                        ui.heading(format!("Tasks"));
+                        ui.heading("Tasks");
                         for t in config.tasks() {
                             ui.horizontal(|ui| {
                                 if ui.button("add test").clicked() {
@@ -134,7 +134,7 @@ impl eframe::App for App {
                     }
                 }
                 AppState::Msg(msg) => {
-                    ui.label(format!("{msg}"));
+                    ui.label(msg.clone());
                 }
                 AppState::None => (),
             };
@@ -151,9 +151,8 @@ impl eframe::App for App {
 }
 
 fn read_config(path: &PathBuf) -> Result<Config, String> {
-    match path.try_exists() {
-        Err(e) => return Err(format!("{} does not exists: {e}", path.display())),
-        _ => (),
+    if let Err(e) = path.try_exists() {
+        return Err(format!("{} does not exists: {e}", path.display()));
     };
     let s = match read_to_string(path) {
         Ok(s) => s,
