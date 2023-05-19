@@ -62,13 +62,13 @@ fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
         id.to_uppercase(),
         config.get_task_name(&id).unwrap_or("unnamed task".into())
     );
-    if config.shold_build(&id) {
+    if config.should_build(&id) {
         println!("Building");
         config.build(&id)?;
     }
     println!("Testing");
     let mut failed = vec![];
-    for res in config.tests(&id) {
+    for res in config.run_tests(&id) {
         match res as TestResult {
             TestResult::Ok => print!("."),
             TestResult::Failed(f) => {
@@ -95,6 +95,8 @@ fn print_failed_test(f: &FailedTest) {
     }
     println!(
         "-- test {} --\nExpected output:\n{}\n\nActual output:\n{}{stderr}",
-        f.index + 1, f.expected, f.cmd_output.stdout
+        f.index + 1,
+        f.expected,
+        f.cmd_output.stdout
     );
 }

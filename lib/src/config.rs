@@ -28,6 +28,23 @@ struct Task {
     tests: Vec<Test>,
 }
 
+#[derive(Debug)]
+pub struct TaskInfo {
+    pub id: TaskID,
+    pub name: String,
+    pub tests_count: usize,
+}
+
+impl TaskInfo {
+    pub fn new<S: Into<String>>(id: S, name: S, tests_count: usize) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            tests_count,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct Settings {
     build: BuildSettings,
@@ -69,7 +86,7 @@ impl Config {
         }
         Ok(())
     }
-    pub fn shold_build(&self, _id: &TaskID) -> bool {
+    pub fn should_build(&self, _id: &TaskID) -> bool {
         self.settings.build.build.is_some()
     }
     pub fn build(&self, id: &TaskID) -> Result<()> {
@@ -78,7 +95,7 @@ impl Config {
         }
         Ok(())
     }
-    pub fn tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
+    pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
         let tests = self
             .tasks
             .get(id)
@@ -104,6 +121,10 @@ impl Config {
     pub fn get_task_name(&self, id: &TaskID) -> Option<String> {
         self.tasks.get(id).map(|t| t.name.clone())
     }
+    pub fn add_task<S: Into<String>>(&mut self, id: TaskID, name: S) {
+        let task = self.tasks.entry(id.to_lowercase()).or_default();
+        task.name = name.into();
+    }
     pub fn add_test_to_task<S>(&mut self, id: TaskID, name: S, input: S, expected: S)
     where
         S: Into<String>,
@@ -115,6 +136,11 @@ impl Config {
     pub fn save_config_to(&self, path: PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
         write_file(path, content.as_bytes()).map_err(Error::CannotSaveConfig)
+    }
+    pub fn tasks(&self) -> impl Iterator<Item = TaskInfo> + '_ {
+        self.tasks
+            .iter()
+            .map(|(k, v)| TaskInfo::new(k, &v.name, v.tests.len()))
     }
 }
 

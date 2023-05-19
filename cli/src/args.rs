@@ -27,7 +27,7 @@ pub(crate) enum Commands {
     /// Run test for specific task
     Test {
         /// Test id
-        id: TaskID
+        id: TaskID,
     },
     /// Format config file
     #[clap(name = "fmt")]

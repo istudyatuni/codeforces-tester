@@ -1,6 +1,6 @@
 [workspace]
 members = ["cli", "lib", "gui"]
-default-members = ["cli"]
+default-members = ["gui"]
 
 [workspace.package]
 version = "0.1.0"

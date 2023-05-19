@@ -1,26 +1,28 @@
-use gtk::prelude::*;
+#![cfg_attr(
+    // hide console window on Windows in release
+    all(target_family = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)]
 
-use gtk::{glib, Application, ApplicationWindow, Builder};
+use anyhow::Result;
+use eframe::egui;
 
-fn main() -> glib::ExitCode {
-    let application = Application::new(
-        Some("com.github.istudyatuni.codeforces-tester"),
-        Default::default(),
-    );
-    application.connect_activate(build_ui);
-    application.run()
-}
+mod app;
 
-pub fn build_ui(application: &Application) {
-    let ui_src = include_str!("../resources/window.ui");
-    let builder = Builder::new();
-    builder
-        .add_from_string(ui_src)
-        .expect("Couldn't add from string");
+const GUI_SCALE: f32 = 1.5;
 
-    let window: ApplicationWindow = builder.object("window").expect("Couldn't get window");
-    window.set_application(Some(application));
-    // let text_view: TextView = builder.object("text_view").expect("Couldn't get text_view");
-
-    window.present();
+fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "Codeforces tester",
+        options,
+        Box::new(|ctx| {
+            ctx.egui_ctx.set_pixels_per_point(GUI_SCALE);
+            Box::<app::App>::default()
+        }),
+    )
 }
