@@ -5,6 +5,8 @@ use eframe::egui::{self, RichText};
 
 use lib::{Config, TaskID, TaskInfo};
 
+use crate::widgets::{add_task, add_test, AddTask, AddTest};
+
 #[derive(Debug, Default)]
 pub(crate) struct App {
     config_path: Option<PathBuf>,
@@ -20,18 +22,6 @@ enum BottomState {
     Error(String),
     #[default]
     None,
-}
-
-#[derive(Debug, Default, Clone)]
-struct AddTask {
-    id: String,
-    name: String,
-}
-
-#[derive(Debug, Default, Clone)]
-struct AddTest {
-    input: String,
-    expected: String,
 }
 
 impl eframe::App for App {
@@ -86,18 +76,7 @@ impl eframe::App for App {
 
             match &mut self.bottom_state {
                 BottomState::AddTask(ref mut state) => {
-                    ui.heading(format!("Add task:"));
-                    ui.horizontal(|ui| {
-                        let id_label = ui.label("ID:");
-                        ui.text_edit_singleline(&mut state.id)
-                            .labelled_by(id_label.id);
-                    });
-                    ui.horizontal(|ui| {
-                        let name_label = ui.label("Name:");
-                        ui.text_edit_singleline(&mut state.name)
-                            .labelled_by(name_label.id);
-                    });
-                    if ui.button("Submit").clicked() {
+                    if ui.add(add_task(state)).clicked() {
                         if let Some(config_path) = &self.config_path {
                             if let Some(ref mut config) = self.config {
                                 config.add_task(state.id.clone(), state.name.clone());
@@ -117,14 +96,7 @@ impl eframe::App for App {
                     }
                 }
                 BottomState::AddTest(task_id, ref mut state) => {
-                    ui.heading(format!("Add test for task {}:", task_id.to_uppercase()));
-                    let id_label = ui.label("Input:");
-                    ui.text_edit_multiline(&mut state.input)
-                        .labelled_by(id_label.id);
-                    let id_label = ui.label("Expected:");
-                    ui.text_edit_multiline(&mut state.expected)
-                        .labelled_by(id_label.id);
-                    if ui.button("Submit").clicked() {
+                    if ui.add(add_test(state, task_id.clone())).clicked() {
                         if let Some(config_path) = &self.config_path {
                             if let Some(ref mut config) = self.config {
                                 config.add_test_to_task(

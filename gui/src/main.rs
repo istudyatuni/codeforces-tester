@@ -8,6 +8,7 @@ use anyhow::Result;
 use eframe::egui;
 
 mod app;
+mod widgets;
 
 const GUI_SCALE: f32 = 1.5;
 
