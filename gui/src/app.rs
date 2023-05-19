@@ -15,7 +15,7 @@ pub(crate) struct App {
 #[derive(Debug, Default)]
 enum BottomState {
     AddTask(AddTask),
-    AddTest(TaskID),
+    AddTest(TaskID, AddTest),
     Msg(String),
     Error(String),
     #[default]
@@ -26,6 +26,12 @@ enum BottomState {
 struct AddTask {
     id: String,
     name: String,
+}
+
+#[derive(Debug, Default, Clone)]
+struct AddTest {
+    input: String,
+    expected: String,
 }
 
 impl eframe::App for App {
@@ -63,9 +69,13 @@ impl eframe::App for App {
                     if let Some(config) = &self.config {
                         ui.heading(format!("Tasks"));
                         for t in config.tasks() {
-                            // ui.horizontal(|ui| {
-                            ui.label(RichText::new(format_task_info(&t)).strong());
-                            // });
+                            ui.horizontal(|ui| {
+                                if ui.button("add test").clicked() {
+                                    self.bottom_state =
+                                        BottomState::AddTest(t.id.clone(), AddTest::default());
+                                }
+                                ui.label(RichText::new(format_task_info(&t)).strong());
+                            });
                         }
                         if ui.button("Add task").clicked() {
                             self.bottom_state = BottomState::AddTask(AddTask::default());
@@ -77,29 +87,66 @@ impl eframe::App for App {
             match &mut self.bottom_state {
                 BottomState::AddTask(ref mut state) => {
                     ui.heading(format!("Add task:"));
-                    let id_label = ui.label("ID: ");
-                    ui.text_edit_singleline(&mut state.id)
-                        .labelled_by(id_label.id);
-                    let name_label = ui.label("Name: ");
-                    ui.text_edit_singleline(&mut state.name)
-                        .labelled_by(name_label.id);
+                    ui.horizontal(|ui| {
+                        let id_label = ui.label("ID:");
+                        ui.text_edit_singleline(&mut state.id)
+                            .labelled_by(id_label.id);
+                    });
+                    ui.horizontal(|ui| {
+                        let name_label = ui.label("Name:");
+                        ui.text_edit_singleline(&mut state.name)
+                            .labelled_by(name_label.id);
+                    });
                     if ui.button("Submit").clicked() {
                         if let Some(config_path) = &self.config_path {
-                            match save_config(&mut self.config, config_path, state.clone()) {
-                                Ok(_) => {
-                                    self.bottom_state = BottomState::Msg("Config saved".into())
-                                }
-                                Err(e) => {
-                                    self.bottom_state = BottomState::Error(format!(
-                                        "cannot save config to {}: {e}",
-                                        config_path.display()
-                                    ))
+                            if let Some(ref mut config) = self.config {
+                                config.add_task(state.id.clone(), state.name.clone());
+                                match config.save_config_to(config_path.into()) {
+                                    Ok(_) => {
+                                        self.bottom_state = BottomState::Msg("Config saved".into())
+                                    }
+                                    Err(e) => {
+                                        self.bottom_state = BottomState::Error(format!(
+                                            "cannot save config to {}: {e}",
+                                            config_path.display()
+                                        ))
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                BottomState::AddTest(_task_id) => todo!(),
+                BottomState::AddTest(task_id, ref mut state) => {
+                    ui.heading(format!("Add test for task {}:", task_id.to_uppercase()));
+                    let id_label = ui.label("Input:");
+                    ui.text_edit_multiline(&mut state.input)
+                        .labelled_by(id_label.id);
+                    let id_label = ui.label("Expected:");
+                    ui.text_edit_multiline(&mut state.expected)
+                        .labelled_by(id_label.id);
+                    if ui.button("Submit").clicked() {
+                        if let Some(config_path) = &self.config_path {
+                            if let Some(ref mut config) = self.config {
+                                config.add_test_to_task(
+                                    task_id.clone(),
+                                    state.input.clone(),
+                                    state.expected.clone(),
+                                );
+                                match config.save_config_to(config_path.into()) {
+                                    Ok(_) => {
+                                        self.bottom_state = BottomState::Msg("Config saved".into())
+                                    }
+                                    Err(e) => {
+                                        self.bottom_state = BottomState::Error(format!(
+                                            "cannot save config to {}: {e}",
+                                            config_path.display()
+                                        ))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 BottomState::Msg(msg) => {
                     ui.label(format!("{msg}"));
                 }
@@ -134,12 +181,4 @@ fn format_task_info(t: &TaskInfo) -> String {
         t.name,
         t.tests_count
     )
-}
-
-fn save_config(config: &mut Option<Config>, config_path: &PathBuf, task: AddTask) -> Result<()> {
-    if let Some(ref mut config) = config {
-        config.add_task(task.id.clone(), task.name.clone());
-        config.save_config_to(config_path.into())?;
-    }
-    Ok(())
 }

@@ -51,7 +51,8 @@ fn ask_and_add_task(config: &mut Config) -> Result<()> {
 
     let prompt = format!("Enter expected output {continue_prompt}:\n");
     let expected = read_until_eof_with_prompt(&prompt)?;
-    config.add_test_to_task(id, name, input, expected);
+    config.add_task(id.clone(), name);
+    config.add_test_to_task(id, input, expected);
     Ok(())
 }
 

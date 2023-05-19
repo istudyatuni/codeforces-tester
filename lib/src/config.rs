@@ -122,16 +122,17 @@ impl Config {
         self.tasks.get(id).map(|t| t.name.clone())
     }
     pub fn add_task<S: Into<String>>(&mut self, id: TaskID, name: S) {
-        let task = self.tasks.entry(id.to_lowercase()).or_default();
-        task.name = name.into();
+        self.tasks.entry(id.to_lowercase()).or_default().name = name.into()
     }
-    pub fn add_test_to_task<S>(&mut self, id: TaskID, name: S, input: S, expected: S)
+    pub fn add_test_to_task<S>(&mut self, id: TaskID, input: S, expected: S)
     where
         S: Into<String>,
     {
-        let task = self.tasks.entry(id).or_default();
-        task.name = name.into();
-        task.tests.push(Test::new(input, expected));
+        self.tasks
+            .entry(id)
+            .or_default()
+            .tests
+            .push(Test::new(input, expected))
     }
     pub fn save_config_to(&self, path: PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
