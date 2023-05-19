@@ -1,12 +1,12 @@
 use eframe::egui::{Response, Ui, Widget};
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct AddTask {
+pub(crate) struct AddTaskState {
     pub(crate) id: String,
     pub(crate) name: String,
 }
 
-fn add_task_ui(ui: &mut Ui, state: &mut AddTask) -> Response {
+fn add_task_ui(ui: &mut Ui, state: &mut AddTaskState) -> Response {
     ui.heading(format!("Add task:"));
     ui.horizontal(|ui| {
         let id_label = ui.label("ID:");
@@ -21,6 +21,6 @@ fn add_task_ui(ui: &mut Ui, state: &mut AddTask) -> Response {
     ui.button("Submit")
 }
 
-pub(crate) fn add_task(state: &mut AddTask) -> impl Widget + '_ {
+pub(crate) fn add_task(state: &mut AddTaskState) -> impl Widget + '_ {
     move |ui: &mut Ui| add_task_ui(ui, state)
 }

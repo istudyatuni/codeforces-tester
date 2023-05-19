@@ -5,21 +5,21 @@ use eframe::egui::{self, RichText};
 
 use lib::{Config, TaskID, TaskInfo};
 
-use crate::widgets::{add_task, add_test, AddTask, AddTest};
+use crate::widgets::{add_task, add_test, AddTaskState, AddTestState};
 
 #[derive(Debug, Default)]
 pub(crate) struct App {
     config_path: Option<PathBuf>,
     config: Option<Config>,
-    bottom_state: BottomState,
+    app_state: AppState,
+    error_state: Option<String>,
 }
 
 #[derive(Debug, Default)]
-enum BottomState {
-    AddTask(AddTask),
-    AddTest(TaskID, AddTest),
+enum AppState {
+    AddTask(AddTaskState),
+    AddTest(TaskID, AddTestState),
     Msg(String),
-    Error(String),
     #[default]
     None,
 }
@@ -47,10 +47,10 @@ impl eframe::App for App {
                         match read_config(config_path) {
                             Ok(c) => {
                                 self.config = Some(c);
-                                self.bottom_state = BottomState::default()
+                                self.app_state = AppState::default()
                             }
                             Err(e) => {
-                                self.bottom_state = BottomState::Error(e);
+                                self.error_state = Some(e);
                                 break 'config;
                             }
                         }
@@ -61,31 +61,29 @@ impl eframe::App for App {
                         for t in config.tasks() {
                             ui.horizontal(|ui| {
                                 if ui.button("add test").clicked() {
-                                    self.bottom_state =
-                                        BottomState::AddTest(t.id.clone(), AddTest::default());
+                                    self.app_state =
+                                        AppState::AddTest(t.id.clone(), AddTestState::default());
                                 }
                                 ui.label(RichText::new(format_task_info(&t)).strong());
                             });
                         }
                         if ui.button("Add task").clicked() {
-                            self.bottom_state = BottomState::AddTask(AddTask::default());
+                            self.app_state = AppState::AddTask(AddTaskState::default());
                         }
                     }
                 }
             }
 
-            match &mut self.bottom_state {
-                BottomState::AddTask(ref mut state) => {
+            match &mut self.app_state {
+                AppState::AddTask(ref mut state) => {
                     if ui.add(add_task(state)).clicked() {
                         if let Some(config_path) = &self.config_path {
                             if let Some(ref mut config) = self.config {
                                 config.add_task(state.id.clone(), state.name.clone());
                                 match config.save_config_to(config_path.into()) {
-                                    Ok(_) => {
-                                        self.bottom_state = BottomState::Msg("Config saved".into())
-                                    }
+                                    Ok(_) => self.app_state = AppState::Msg("Config saved".into()),
                                     Err(e) => {
-                                        self.bottom_state = BottomState::Error(format!(
+                                        self.error_state = Some(format!(
                                             "cannot save config to {}: {e}",
                                             config_path.display()
                                         ))
@@ -95,7 +93,7 @@ impl eframe::App for App {
                         }
                     }
                 }
-                BottomState::AddTest(task_id, ref mut state) => {
+                AppState::AddTest(task_id, ref mut state) => {
                     if ui.add(add_test(state, task_id.clone())).clicked() {
                         if let Some(config_path) = &self.config_path {
                             if let Some(ref mut config) = self.config {
@@ -105,11 +103,9 @@ impl eframe::App for App {
                                     state.expected.clone(),
                                 );
                                 match config.save_config_to(config_path.into()) {
-                                    Ok(_) => {
-                                        self.bottom_state = BottomState::Msg("Config saved".into())
-                                    }
+                                    Ok(_) => self.app_state = AppState::Msg("Config saved".into()),
                                     Err(e) => {
-                                        self.bottom_state = BottomState::Error(format!(
+                                        self.error_state = Some(format!(
                                             "cannot save config to {}: {e}",
                                             config_path.display()
                                         ))
@@ -119,14 +115,14 @@ impl eframe::App for App {
                         }
                     }
                 }
-                BottomState::Msg(msg) => {
+                AppState::Msg(msg) => {
                     ui.label(format!("{msg}"));
                 }
-                BottomState::Error(e) => {
-                    ui.label(format!("An error occured: {e}"));
-                }
-                BottomState::None => (),
+                AppState::None => (),
             };
+            if let Some(e) = &self.error_state {
+                ui.label(format!("An error occured: {e}"));
+            }
         });
     }
 }
