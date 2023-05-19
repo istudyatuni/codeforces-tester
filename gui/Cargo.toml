@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 anyhow = "1.0.71"
-eframe = "0.21.3"
+eframe = { version = "0.21.3", features = ["persistence"] }
 env_logger = "0.10.0"
 lib = { path = "../lib", package = "codeforces-tester-lib" }
 rfd = "0.11.3"

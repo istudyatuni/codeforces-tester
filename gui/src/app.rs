@@ -2,10 +2,13 @@ use std::{fs::read_to_string, path::PathBuf};
 
 use anyhow::Result;
 use eframe::egui::{self, RichText};
+use rfd::FileDialog;
 
 use lib::{Config, TaskID, TaskInfo};
 
 use crate::widgets::{add_task, add_test, AddTaskState, AddTestState};
+
+pub(crate) const CONFIG_PATH_STORAGE_KEY: &str = "config_path";
 
 #[derive(Debug, Default)]
 pub(crate) struct App {
@@ -13,6 +16,15 @@ pub(crate) struct App {
     config: Option<Config>,
     app_state: AppState,
     error_state: Option<String>,
+}
+
+impl App {
+    pub(crate) fn new(config_path: Option<PathBuf>) -> Self {
+        Self {
+            config_path,
+            ..Self::default()
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -28,7 +40,13 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Select config").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                let mut picker = FileDialog::new().add_filter("config", &["toml"]);
+                if let Some(config_path) = &self.config_path {
+                    if let Some(config_path) = config_path.parent() {
+                        picker = picker.set_directory(config_path);
+                    }
+                }
+                if let Some(path) = picker.pick_file() {
                     if let Some(config_path) = &self.config_path {
                         if path != *config_path {
                             self.config_path = Some(path);
@@ -124,6 +142,11 @@ impl eframe::App for App {
                 ui.label(format!("An error occured: {e}"));
             }
         });
+    }
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if let Some(config_path) = &self.config_path {
+            storage.set_string(CONFIG_PATH_STORAGE_KEY, config_path.display().to_string())
+        }
     }
 }
 

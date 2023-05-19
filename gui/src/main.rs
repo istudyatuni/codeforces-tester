@@ -5,6 +5,7 @@
 )]
 
 use anyhow::Result;
+use app::{App, CONFIG_PATH_STORAGE_KEY};
 use eframe::egui;
 
 mod app;
@@ -19,11 +20,16 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
     eframe::run_native(
-        "Codeforces tester",
+        "codeforces-tester",
         options,
         Box::new(|ctx| {
             ctx.egui_ctx.set_pixels_per_point(GUI_SCALE);
-            Box::<app::App>::default()
+            let config_path = ctx
+                .storage
+                .map(|s| s.get_string(CONFIG_PATH_STORAGE_KEY))
+                .flatten()
+                .map(|p| p.into());
+            Box::new(App::new(config_path))
         }),
     )
 }
