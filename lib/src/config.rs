@@ -43,14 +43,22 @@ impl TaskInfo {
             tests_count,
         }
     }
+    pub fn format(&self) -> String {
+        format!(
+            "{} - {}, {} tests",
+            self.id.to_uppercase(),
+            self.name,
+            self.tests_count
+        )
+    }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 struct Settings {
     build: BuildSettings,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 /// Available placeholders:
 /// - `{id}` - task id
 struct BuildSettings {
@@ -62,7 +70,7 @@ struct BuildSettings {
     cwd: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     settings: Settings,
     tasks: BTreeMap<TaskID, Task>,
@@ -86,7 +94,7 @@ impl Config {
         }
         Ok(())
     }
-    pub fn should_build(&self, _id: &TaskID) -> bool {
+    pub fn should_build(&self) -> bool {
         self.settings.build.build.is_some()
     }
     pub fn build(&self, id: &TaskID) -> Result<()> {
@@ -121,20 +129,20 @@ impl Config {
     pub fn get_task_name(&self, id: &TaskID) -> Option<String> {
         self.tasks.get(id).map(|t| t.name.clone())
     }
-    pub fn add_task<S: Into<String>>(&mut self, id: TaskID, name: S) {
+    pub fn add_task<S: Into<String>>(&mut self, id: &TaskID, name: S) {
         self.tasks.entry(id.to_lowercase()).or_default().name = name.into()
     }
-    pub fn add_test_to_task<S>(&mut self, id: TaskID, input: S, expected: S)
+    pub fn add_test_to_task<S>(&mut self, id: &TaskID, input: S, expected: S)
     where
         S: Into<String>,
     {
         self.tasks
-            .entry(id)
+            .entry(id.into())
             .or_default()
             .tests
             .push(Test::new(input, expected))
     }
-    pub fn save_config_to(&self, path: PathBuf) -> Result<()> {
+    pub fn save_config_to(&self, path: &PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
         write_file(path, content.as_bytes()).map_err(Error::CannotSaveConfig)
     }

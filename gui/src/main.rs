@@ -16,7 +16,7 @@ const GUI_SCALE: f32 = 1.5;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        initial_window_size: Some(egui::vec2(730.0, 420.0)),
         ..Default::default()
     };
     eframe::run_native(

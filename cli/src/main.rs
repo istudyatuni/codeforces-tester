@@ -18,6 +18,9 @@ const EOF_KEYBOARD: &str = "Ctrl+Z";
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config_path = cli.config().clone();
+    if let Some(Commands::CreateDefault) = cli.command {
+        Config::default().save_config_to(&config_path)?;
+    }
     config_path.try_exists()?;
     let config = read_to_string(&config_path)?;
     let mut config = Config::try_from(config.as_str())?;
@@ -28,11 +31,12 @@ fn main() -> Result<()> {
     match command {
         Commands::Add => {
             ask_and_add_task(&mut config)?;
-            config.save_config_to(config_path.clone())?;
+            config.save_config_to(&config_path)?;
             println!("Saved to {}", config_path.display());
         }
         Commands::Test { id } => run_task_tests(&config, id)?,
-        Commands::Format => config.save_config_to(config_path)?,
+        Commands::Format => config.save_config_to(&config_path)?,
+        Commands::CreateDefault => (),
     }
 
     Ok(())
@@ -51,8 +55,8 @@ fn ask_and_add_task(config: &mut Config) -> Result<()> {
 
     let prompt = format!("Enter expected output {continue_prompt}:\n");
     let expected = read_until_eof_with_prompt(&prompt)?;
-    config.add_task(id.clone(), name);
-    config.add_test_to_task(id, input, expected);
+    config.add_task(&id, name);
+    config.add_test_to_task(&id, input, expected);
     Ok(())
 }
 
@@ -63,7 +67,7 @@ fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
         id.to_uppercase(),
         config.get_task_name(&id).unwrap_or("unnamed task".into())
     );
-    if config.should_build(&id) {
+    if config.should_build() {
         println!("Building");
         config.build(&id)?;
     }

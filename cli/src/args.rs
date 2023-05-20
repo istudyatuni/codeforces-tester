@@ -32,4 +32,7 @@ pub(crate) enum Commands {
     /// Format config file
     #[clap(name = "fmt")]
     Format,
+    /// Create default config
+    #[clap(name = "create-default")]
+    CreateDefault,
 }
