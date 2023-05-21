@@ -55,13 +55,17 @@ enum PostUpdate {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.post_update = Default::default();
+            egui::ScrollArea::both()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    self.post_update = Default::default();
 
-            self.config_select_ui(ui);
-            self.config_content_ui(ui);
-            self.bottom_edit_ui(ui);
-            self.handle_post_update();
-            self.errors_ui(ui);
+                    self.config_select_ui(ui);
+                    self.config_content_ui(ui);
+                    self.bottom_edit_ui(ui);
+                    self.handle_post_update();
+                    self.errors_ui(ui);
+                });
         });
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
