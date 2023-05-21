@@ -91,16 +91,9 @@ fn prepare_exec<S: Into<String>>(cmd: S, cwd: Option<PathBuf>) -> Result<Command
         None => return Err(Error::EmptyCommand),
     };
 
-    let curdir = current_dir().map_err(Error::CannotGetCwd)?;
     let cwd = match cwd {
-        Some(d) => {
-            if d.is_absolute() {
-                d
-            } else {
-                curdir.join(d)
-            }
-        }
-        None => curdir,
+        Some(d) => d,
+        None => current_dir().map_err(Error::CannotGetCwd)?,
     };
     Ok(CommandConfig {
         name: name.into(),

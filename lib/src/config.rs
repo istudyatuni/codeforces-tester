@@ -94,33 +94,29 @@ impl Config {
         self.settings.build.build.is_some()
     }
     pub fn build(&self, id: &TaskID) -> Result<()> {
-        self.build_with_cwd(id, &self.settings.build.cwd)
+        self.build_from_dir(id, &self.settings.build.cwd)
     }
     pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
-        self.run_tests_with_cwd(id, &self.settings.build.cwd)
+        self.run_tests_from_dir(id, &self.settings.build.cwd)
     }
-    pub fn build_with_cwd(&self, id: &TaskID, cwd: &Option<PathBuf>) -> Result<()> {
-        let cwd = cwd
-            .clone()
-            .and_then(|dir| self.settings.build.cwd.clone().map(|p| dir.join(p)));
+    pub fn build_from_dir(&self, id: &TaskID, dir: &Option<PathBuf>) -> Result<()> {
+        let cwd = self.prepare_from_dir(dir);
         if let Some(build) = &self.settings.build.build {
             exec(build.replace("{id}", id), cwd)?;
         }
         Ok(())
     }
-    pub fn run_tests_with_cwd<'s>(
+    pub fn run_tests_from_dir<'s>(
         &'s self,
         id: &'s TaskID,
-        cwd: &'s Option<PathBuf>,
+        dir: &'s Option<PathBuf>,
     ) -> impl IntoIterator<Item = TestResult> + 's {
         let tests = self
             .tasks
             .get(id)
             .map(|t| t.tests.clone())
             .unwrap_or_default();
-        let cwd = cwd
-            .clone()
-            .and_then(|dir| self.settings.build.cwd.clone().map(|p| dir.join(p)));
+        let cwd = self.prepare_from_dir(dir);
         tests.into_iter().enumerate().map(move |(i, test)| {
             let output = exec_with_io(
                 self.settings.build.run.replace("{id}", id),
@@ -137,6 +133,17 @@ impl Config {
                 TestResult::Ok
             }
         })
+    }
+    /// Append `settings.build.cwd` to provided `dir`
+    fn prepare_from_dir(&self, dir: &Option<PathBuf>) -> Option<PathBuf> {
+        let cwd = self.settings.build.cwd.clone();
+        match dir {
+            Some(dir) => match cwd {
+                Some(cwd) => Some(dir.join(cwd)),
+                None => Some(dir.clone()),
+            },
+            None => cwd,
+        }
     }
     pub fn get_task_name(&self, id: &TaskID) -> Option<String> {
         self.tasks.get(id).map(|t| t.name.clone())
