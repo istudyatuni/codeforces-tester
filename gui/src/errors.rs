@@ -88,6 +88,9 @@ impl ErrorsMap {
     pub(crate) fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
+    pub(crate) fn clear(&mut self) {
+        self.map.clear()
+    }
 }
 
 impl<'a> IntoIterator for &'a ErrorsMap {

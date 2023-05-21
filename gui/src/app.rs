@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, path::PathBuf};
 
-use eframe::egui::{self, Link, RichText};
+use eframe::egui::{self, Link, RichText, Ui};
 use rfd::FileDialog;
 
 use lib::{Config, TaskID};
@@ -17,7 +17,7 @@ pub(crate) const CONFIG_PATH_STORAGE_KEY: &str = "config_path";
 pub(crate) struct App {
     config_path: Option<PathBuf>,
     config: Option<Config>,
-    app_state: AppState,
+    edit_state: EditState,
     post_update: PostUpdate,
     errors: ErrorsMap,
 }
@@ -32,7 +32,7 @@ impl App {
 }
 
 #[derive(Debug, Default)]
-enum AppState {
+enum EditState {
     AddTask(AddTaskState),
     EditTask(TaskID, EditTaskState),
     AddTest(TaskID, AddTestState),
@@ -57,126 +57,11 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.post_update = Default::default();
 
-            ui.horizontal(|ui| {
-                if ui.button("Open config").clicked() {
-                    self.select_config();
-                }
-                if self.config_path.is_some() && ui.button("Reload config").clicked() {
-                    self.config = None;
-                }
-                if self.config_path.is_some()
-                    && ui
-                        .button("Create config")
-                        .on_hover_text("Create and save a minimal config")
-                        .clicked()
-                {
-                    self.create_default_config();
-                }
-            });
-
-            if let Some(config_path) = &self.config_path {
-                ui.horizontal(|ui| {
-                    ui.label("Config:");
-                    let config_path_str = config_path.display().to_string();
-                    if ui
-                        .add(Link::new(RichText::new(config_path_str).monospace()))
-                        .on_hover_text("Open config in text editor")
-                        .clicked()
-                    {
-                        self.post_update = PostUpdate::OpenConfigInEditor;
-                    }
-                });
-                if self.config.is_none() {
-                    self.read_config();
-                }
-
-                if let Some(config) = &self.config {
-                    ui.heading("Tasks");
-                    for t in config.tasks() {
-                        ui.horizontal(|ui| {
-                            if ui.button("edit").clicked() {
-                                self.app_state = AppState::EditTask(
-                                    t.id.clone(),
-                                    EditTaskState::new(t.id, t.name),
-                                );
-                            }
-                            if ui.button("add test").clicked() {
-                                self.app_state =
-                                    AppState::AddTest(t.id.clone(), AddTestState::default());
-                            }
-                            if ui.button("edit tests").clicked() {
-                                self.app_state = AppState::EditTests(
-                                    t.id.clone(),
-                                    EditTestsState::new(t.id, t.tests),
-                                );
-                            }
-                            ui.label(RichText::new(t.format()).strong());
-                        });
-                    }
-                    if ui.button("Add task").clicked() {
-                        self.app_state = AppState::AddTask(AddTaskState::default());
-                    }
-                }
-            }
-
-            match &mut self.app_state {
-                AppState::AddTask(ref mut state) => {
-                    if ui.add(add_task(state)).clicked() {
-                        if let Some(ref mut config) = self.config {
-                            config.add_task(&state.id, &state.name);
-                            self.post_update = PostUpdate::SaveConfig;
-                        }
-                    }
-                }
-                AppState::EditTask(task_id, ref mut state) => {
-                    if let Some(ref mut config) = self.config {
-                        state.is_task_exists = config.is_task_exists(&state.id);
-                        if ui.add(edit_task(state)).clicked() {
-                            config.update_task(&task_id, &state.id, &state.name);
-                            self.post_update = PostUpdate::SaveConfig;
-                        }
-                    }
-                }
-                AppState::AddTest(task_id, ref mut state) => {
-                    if ui.add(add_test(state, task_id.clone())).clicked() {
-                        if let Some(ref mut config) = self.config {
-                            config.add_test_to_task(task_id, &state.input, &state.expected);
-                            self.post_update = PostUpdate::SaveConfig;
-                        }
-                    }
-                }
-                AppState::EditTests(task_id, ref mut state) => {
-                    ui.add(edit_tests(state));
-                    match &state.response {
-                        EditTestsResponse::SaveTest((i, test)) => {
-                            if let Some(ref mut config) = self.config {
-                                config.update_test(&task_id, *i, test.clone());
-                                self.post_update = PostUpdate::SaveConfig;
-                            }
-                        }
-                        EditTestsResponse::Cancel => self.post_update = PostUpdate::CancelOperation,
-                        EditTestsResponse::None => (),
-                    }
-                }
-                AppState::Msg(msg) => {
-                    ui.label(msg.clone());
-                }
-                AppState::None => (),
-            }
-
-            match self.post_update {
-                PostUpdate::SaveConfig => self.save_config(),
-                PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
-                PostUpdate::CancelOperation => self.app_state = Default::default(),
-                PostUpdate::None => (),
-            }
-
-            if !self.errors.is_empty() {
-                ui.heading("An errors occured:");
-                for (kind, e) in &self.errors {
-                    ui.label(format!("{kind}: {e}"));
-                }
-            }
+            self.config_select_ui(ui);
+            self.config_content_ui(ui);
+            self.bottom_edit_ui(ui);
+            self.handle_post_update();
+            self.errors_ui(ui);
         });
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -186,6 +71,132 @@ impl eframe::App for App {
     }
 }
 
+/// UI
+impl App {
+    fn config_select_ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            if ui.button("Open config").clicked() {
+                self.select_config();
+            }
+            if self.config_path.is_some() && ui.button("Reload config").clicked() {
+                self.config = None;
+            }
+            if self.config_path.is_some()
+                && ui
+                    .button("Create config")
+                    .on_hover_text("Create and save a minimal config")
+                    .clicked()
+            {
+                self.create_default_config();
+            }
+        });
+    }
+    fn config_content_ui(&mut self, ui: &mut Ui) {
+        if let Some(config_path) = &self.config_path {
+            ui.horizontal(|ui| {
+                ui.label("Config:");
+                let config_path_str = config_path.display().to_string();
+                if ui
+                    .add(Link::new(RichText::new(config_path_str).monospace()))
+                    .on_hover_text("Open config in text editor")
+                    .clicked()
+                {
+                    self.post_update = PostUpdate::OpenConfigInEditor;
+                }
+            });
+            if self.config.is_none() {
+                self.read_config();
+            }
+
+            if let Some(config) = &self.config {
+                ui.heading("Tasks");
+                for t in config.tasks() {
+                    ui.horizontal(|ui| {
+                        if ui.button("edit").clicked() {
+                            self.edit_state =
+                                EditState::EditTask(t.id.clone(), EditTaskState::new(t.id, t.name));
+                        }
+                        if ui.button("add test").clicked() {
+                            self.edit_state =
+                                EditState::AddTest(t.id.clone(), AddTestState::default());
+                        }
+                        if ui.button("edit tests").clicked() {
+                            self.edit_state = EditState::EditTests(
+                                t.id.clone(),
+                                EditTestsState::new(t.id, t.tests),
+                            );
+                        }
+                        ui.label(RichText::new(t.format()).strong());
+                    });
+                }
+                if ui.button("Add task").clicked() {
+                    self.edit_state = EditState::AddTask(AddTaskState::default());
+                }
+            }
+        }
+    }
+    fn bottom_edit_ui(&mut self, ui: &mut Ui) {
+        match &mut self.edit_state {
+            EditState::AddTask(ref mut state) => {
+                if ui.add(add_task(state)).clicked() {
+                    if let Some(ref mut config) = self.config {
+                        config.add_task(&state.id, &state.name);
+                        self.post_update = PostUpdate::SaveConfig;
+                    }
+                }
+            }
+            EditState::EditTask(task_id, ref mut state) => {
+                if let Some(ref mut config) = self.config {
+                    state.is_task_exists = config.is_task_exists(&state.id);
+                    if ui.add(edit_task(state)).clicked() {
+                        config.update_task(&task_id, &state.id, &state.name);
+                        self.post_update = PostUpdate::SaveConfig;
+                    }
+                }
+            }
+            EditState::AddTest(task_id, ref mut state) => {
+                if ui.add(add_test(state, task_id.clone())).clicked() {
+                    if let Some(ref mut config) = self.config {
+                        config.add_test_to_task(task_id, &state.input, &state.expected);
+                        self.post_update = PostUpdate::SaveConfig;
+                    }
+                }
+            }
+            EditState::EditTests(task_id, ref mut state) => {
+                ui.add(edit_tests(state));
+                match &state.response {
+                    EditTestsResponse::SaveTest((i, test)) => {
+                        if let Some(ref mut config) = self.config {
+                            config.update_test(&task_id, *i, test.clone());
+                            self.post_update = PostUpdate::SaveConfig;
+                        }
+                    }
+                    EditTestsResponse::Cancel => self.post_update = PostUpdate::CancelOperation,
+                    EditTestsResponse::None => (),
+                }
+            }
+            EditState::Msg(msg) => {
+                ui.label(msg.clone());
+            }
+            EditState::None => (),
+        }
+    }
+    fn errors_ui(&mut self, ui: &mut Ui) {
+        if !self.errors.is_empty() {
+            ui.horizontal(|ui| {
+                ui.heading("An errors occured:");
+                if ui.button("Clear").clicked() {
+                    return self.errors.clear();
+                }
+            });
+            for (kind, e) in &self.errors {
+                ui.label(format!("{kind}: {e}"));
+            }
+        }
+    }
+}
+
+/// Logic
 impl App {
     fn select_config(&mut self) {
         let mut picker = FileDialog::new().add_filter("config", &["toml"]);
@@ -249,7 +260,7 @@ impl App {
             };
 
             self.config = Some(config);
-            self.app_state = Default::default();
+            self.edit_state = Default::default();
         }
     }
     fn save_config(&mut self) {
@@ -267,7 +278,7 @@ impl App {
 
         self.errors.delete(ErrorKind::CannotSaveConfig);
         match config.save_config_to(config_path) {
-            Ok(_) => self.app_state = AppState::Msg("Config saved".into()),
+            Ok(_) => self.edit_state = EditState::Msg("Config saved".into()),
             Err(e) => self.errors.add(Error::CannotSaveConfig(e.to_string())),
         }
     }
@@ -289,6 +300,15 @@ impl App {
             Err(_) => self.errors.add(Error::CannotOpenConfigInEditor(
                 "error join on thread".into(),
             )),
+        }
+    }
+
+    fn handle_post_update(&mut self) {
+        match self.post_update {
+            PostUpdate::SaveConfig => self.save_config(),
+            PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
+            PostUpdate::CancelOperation => self.edit_state = Default::default(),
+            PostUpdate::None => (),
         }
     }
 }
