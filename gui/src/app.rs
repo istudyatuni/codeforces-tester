@@ -41,6 +41,7 @@ enum AppState {
 #[derive(Debug, Default)]
 enum PostUpdate {
     SaveConfig,
+    OpenConfigInEditor,
     #[default]
     None,
 }
@@ -51,7 +52,7 @@ impl eframe::App for App {
             self.post_update = Default::default();
 
             ui.horizontal(|ui| {
-                if ui.button("Select config").clicked() {
+                if ui.button("Open config").clicked() {
                     self.select_config();
                 }
                 if self.config_path.is_some() && ui.button("Reload config").clicked() {
@@ -68,7 +69,16 @@ impl eframe::App for App {
             });
 
             if let Some(config_path) = &self.config_path {
-                ui.label(format!("Config: {}", config_path.display()));
+                ui.horizontal(|ui| {
+                    ui.label("Config:");
+                    if ui
+                        .link(config_path.display().to_string())
+                        .on_hover_text("Open config in text editor")
+                        .clicked()
+                    {
+                        self.post_update = PostUpdate::OpenConfigInEditor;
+                    }
+                });
                 if self.config.is_none() {
                     self.read_config();
                 }
@@ -130,6 +140,7 @@ impl eframe::App for App {
 
             match self.post_update {
                 PostUpdate::SaveConfig => self.save_config(),
+                PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
                 PostUpdate::None => (),
             }
 
@@ -231,6 +242,26 @@ impl App {
         match config.save_config_to(config_path) {
             Ok(_) => self.app_state = AppState::Msg("Config saved".into()),
             Err(e) => self.errors.add(Error::CannotSaveConfig(e.to_string())),
+        }
+    }
+    fn open_config_in_editor(&mut self) {
+        self.errors
+            .delete(ErrorKind::BugConfigEmptyWhenSavingConfig);
+        let Some(config_path) = &self.config_path else {
+            return self.errors.add(Error::BugConfigEmptyWhenSavingConfig);
+        };
+
+        self.errors.delete(ErrorKind::CannotOpenConfigInEditor);
+        match open::that_in_background(config_path).join() {
+            Ok(r) => match r {
+                Ok(_) => (),
+                Err(e) => self
+                    .errors
+                    .add(Error::CannotOpenConfigInEditor(e.to_string())),
+            },
+            Err(_) => self.errors.add(Error::CannotOpenConfigInEditor(
+                "error join on thread".into(),
+            )),
         }
     }
 }

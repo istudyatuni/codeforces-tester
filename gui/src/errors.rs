@@ -18,6 +18,8 @@ pub(crate) enum ErrorKind {
     CannotParseConfig,
     #[error("cannot save config")]
     CannotSaveConfig,
+    #[error("cannot open config in editor")]
+    CannotOpenConfigInEditor,
     #[error("{} does not exists", .0.display())]
     PathNotExists(PathBuf),
 
@@ -41,6 +43,8 @@ pub(crate) enum Error {
     #[error("{0}")]
     CannotSaveConfig(String),
     #[error("{0}")]
+    CannotOpenConfigInEditor(String),
+    #[error("{0}")]
     PathNotExists(String, PathBuf),
 
     // instead of unreachable!()
@@ -53,14 +57,15 @@ pub(crate) enum Error {
 impl Error {
     pub(crate) fn kind(&self) -> ErrorKind {
         match self {
-            Error::CannotSelectConfig => ErrorKind::CannotSelectConfig,
-            Error::CannotSelectPathForSavingConfig => ErrorKind::CannotSelectPathForSavingConfig,
-            Error::CannotReadConfig(_) => ErrorKind::CannotReadConfig,
-            Error::CannotParseConfig(_, _) => ErrorKind::CannotParseConfig,
-            Error::CannotSaveConfig(_) => ErrorKind::CannotSaveConfig,
-            Error::PathNotExists(_, path) => ErrorKind::PathNotExists(path.clone()),
-            Error::BugConfigEmptyWhenSavingConfig => ErrorKind::BugConfigEmptyWhenSavingConfig,
-            Error::BugConfigPathEmptyWhenSavingConfig => {
+            Self::CannotSelectConfig => ErrorKind::CannotSelectConfig,
+            Self::CannotSelectPathForSavingConfig => ErrorKind::CannotSelectPathForSavingConfig,
+            Self::CannotReadConfig(_) => ErrorKind::CannotReadConfig,
+            Self::CannotParseConfig(_, _) => ErrorKind::CannotParseConfig,
+            Self::CannotSaveConfig(_) => ErrorKind::CannotSaveConfig,
+            Self::CannotOpenConfigInEditor(_) => ErrorKind::CannotOpenConfigInEditor,
+            Self::PathNotExists(_, path) => ErrorKind::PathNotExists(path.clone()),
+            Self::BugConfigEmptyWhenSavingConfig => ErrorKind::BugConfigEmptyWhenSavingConfig,
+            Self::BugConfigPathEmptyWhenSavingConfig => {
                 ErrorKind::BugConfigPathEmptyWhenSavingConfig
             }
         }
