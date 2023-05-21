@@ -604,6 +604,7 @@ dependencies = [
  "eframe",
  "env_logger",
  "rfd",
+ "thiserror",
 ]
 
 [[package]]

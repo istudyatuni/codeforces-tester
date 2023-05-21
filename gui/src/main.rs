@@ -9,6 +9,7 @@ use app::{App, CONFIG_PATH_STORAGE_KEY};
 use eframe::egui;
 
 mod app;
+mod errors;
 mod widgets;
 
 const GUI_SCALE: f32 = 1.5;

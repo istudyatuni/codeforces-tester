@@ -28,9 +28,10 @@ impl CommandOutput {
 
 pub(crate) fn exec<S>(cmd: S, cwd: &Option<PathBuf>) -> Result<()>
 where
-    S: Into<String> + Clone,
+    S: Into<String>,
 {
-    let conf = prepare_exec(cmd.clone(), cwd)?;
+    let cmd: String = cmd.into();
+    let conf = prepare_exec(&cmd, cwd)?;
     let status = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
@@ -48,9 +49,10 @@ where
 
 pub(crate) fn exec_with_io<S>(cmd: S, input: S, cwd: &Option<PathBuf>) -> Result<CommandOutput>
 where
-    S: Into<String> + Clone,
+    S: Into<String>,
 {
-    let conf = prepare_exec(cmd.clone(), cwd)?;
+    let cmd: String = cmd.into();
+    let conf = prepare_exec(&cmd, cwd)?;
     let child = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
