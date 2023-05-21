@@ -9,10 +9,10 @@ pub(crate) struct AddTestState {
 fn add_test_ui(ui: &mut Ui, state: &mut AddTestState, task_id: String) -> Response {
     ui.heading(format!("Add test for task {}:", task_id.to_uppercase()));
     let id_label = ui.label("Input:");
-    ui.text_edit_multiline(&mut state.input)
+    ui.code_editor(&mut state.input)
         .labelled_by(id_label.id);
     let id_label = ui.label("Expected:");
-    ui.text_edit_multiline(&mut state.expected)
+    ui.code_editor(&mut state.expected)
         .labelled_by(id_label.id);
     ui.button("Submit")
 }

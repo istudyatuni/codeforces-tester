@@ -1,7 +1,8 @@
 use eframe::egui::{Button, Response, Ui, Widget};
+
 use lib::TaskID;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub(crate) struct EditTaskState {
     pub(crate) id: String,
     pub(crate) name: String,

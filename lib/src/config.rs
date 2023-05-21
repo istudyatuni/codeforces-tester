@@ -146,6 +146,14 @@ impl Config {
             .tests
             .push(Test::new(input, expected))
     }
+    pub fn update_test(&mut self, id: &TaskID, index: usize, test: Test) {
+        self.tasks
+            .entry(id.into())
+            .or_default()
+            .tests
+            .get_mut(index)
+            .map(|t| *t = test);
+    }
     pub fn save_config_to(&self, path: &PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
         write_file(path, content.as_bytes()).map_err(Error::CannotSaveConfig)

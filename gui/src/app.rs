@@ -1,12 +1,15 @@
 use std::{fs::read_to_string, path::PathBuf};
 
-use eframe::egui::{self, RichText};
+use eframe::egui::{self, Link, RichText};
 use rfd::FileDialog;
 
 use lib::{Config, TaskID};
 
 use crate::errors::{Error, ErrorKind, ErrorsMap};
-use crate::widgets::{add_task, add_test, edit_task, AddTaskState, AddTestState, EditTaskState};
+use crate::widgets::{
+    add_task, add_test, edit_task, edit_tests, AddTaskState, AddTestState, EditTaskState,
+    EditTestsResponse, EditTestsState,
+};
 
 pub(crate) const CONFIG_PATH_STORAGE_KEY: &str = "config_path";
 
@@ -23,7 +26,7 @@ impl App {
     pub(crate) fn new(config_path: Option<PathBuf>) -> Self {
         Self {
             config_path,
-            ..Self::default()
+            ..Default::default()
         }
     }
 }
@@ -33,6 +36,8 @@ enum AppState {
     AddTask(AddTaskState),
     EditTask(TaskID, EditTaskState),
     AddTest(TaskID, AddTestState),
+    EditTests(TaskID, EditTestsState),
+
     Msg(String),
     #[default]
     None,
@@ -42,6 +47,7 @@ enum AppState {
 enum PostUpdate {
     SaveConfig,
     OpenConfigInEditor,
+    CancelOperation,
     #[default]
     None,
 }
@@ -71,8 +77,9 @@ impl eframe::App for App {
             if let Some(config_path) = &self.config_path {
                 ui.horizontal(|ui| {
                     ui.label("Config:");
+                    let config_path_str = config_path.display().to_string();
                     if ui
-                        .link(config_path.display().to_string())
+                        .add(Link::new(RichText::new(config_path_str).monospace()))
                         .on_hover_text("Open config in text editor")
                         .clicked()
                     {
@@ -96,6 +103,12 @@ impl eframe::App for App {
                             if ui.button("add test").clicked() {
                                 self.app_state =
                                     AppState::AddTest(t.id.clone(), AddTestState::default());
+                            }
+                            if ui.button("edit tests").clicked() {
+                                self.app_state = AppState::EditTests(
+                                    t.id.clone(),
+                                    EditTestsState::new(t.id, t.tests),
+                                );
                             }
                             ui.label(RichText::new(t.format()).strong());
                         });
@@ -132,6 +145,19 @@ impl eframe::App for App {
                         }
                     }
                 }
+                AppState::EditTests(task_id, ref mut state) => {
+                    ui.add(edit_tests(state));
+                    match &state.response {
+                        EditTestsResponse::SaveTest((i, test)) => {
+                            if let Some(ref mut config) = self.config {
+                                config.update_test(&task_id, *i, test.clone());
+                                self.post_update = PostUpdate::SaveConfig;
+                            }
+                        }
+                        EditTestsResponse::Cancel => self.post_update = PostUpdate::CancelOperation,
+                        EditTestsResponse::None => (),
+                    }
+                }
                 AppState::Msg(msg) => {
                     ui.label(msg.clone());
                 }
@@ -141,6 +167,7 @@ impl eframe::App for App {
             match self.post_update {
                 PostUpdate::SaveConfig => self.save_config(),
                 PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
+                PostUpdate::CancelOperation => self.app_state = Default::default(),
                 PostUpdate::None => (),
             }
 
@@ -222,7 +249,7 @@ impl App {
             };
 
             self.config = Some(config);
-            self.app_state = AppState::default();
+            self.app_state = Default::default();
         }
     }
     fn save_config(&mut self) {

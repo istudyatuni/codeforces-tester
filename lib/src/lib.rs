@@ -2,7 +2,7 @@ mod config;
 mod errors;
 mod exec;
 
-pub use config::{Config, FailedTest, TaskInfo, TestResult};
+pub use config::{Config, FailedTest, TaskInfo, Test, TestResult};
 pub use errors::{Error, Result};
 pub use exec::CommandOutput;
 
