@@ -6,7 +6,7 @@ use rfd::FileDialog;
 use lib::{Config, TaskID};
 
 use crate::errors::{Error, ErrorKind, ErrorsMap};
-use crate::widgets::{add_task, add_test, AddTaskState, AddTestState};
+use crate::widgets::{add_task, add_test, edit_task, AddTaskState, AddTestState, EditTaskState};
 
 pub(crate) const CONFIG_PATH_STORAGE_KEY: &str = "config_path";
 
@@ -31,6 +31,7 @@ impl App {
 #[derive(Debug, Default)]
 enum AppState {
     AddTask(AddTaskState),
+    EditTask(TaskID, EditTaskState),
     AddTest(TaskID, AddTestState),
     Msg(String),
     #[default]
@@ -76,6 +77,12 @@ impl eframe::App for App {
                     ui.heading("Tasks");
                     for t in config.tasks() {
                         ui.horizontal(|ui| {
+                            if ui.button("edit").clicked() {
+                                self.app_state = AppState::EditTask(
+                                    t.id.clone(),
+                                    EditTaskState::new(t.id, t.name),
+                                );
+                            }
                             if ui.button("add test").clicked() {
                                 self.app_state =
                                     AppState::AddTest(t.id.clone(), AddTestState::default());
@@ -94,6 +101,15 @@ impl eframe::App for App {
                     if ui.add(add_task(state)).clicked() {
                         if let Some(ref mut config) = self.config {
                             config.add_task(&state.id, &state.name);
+                            self.post_update = PostUpdate::SaveConfig;
+                        }
+                    }
+                }
+                AppState::EditTask(task_id, ref mut state) => {
+                    if let Some(ref mut config) = self.config {
+                        state.is_task_exists = config.is_task_exists(&state.id);
+                        if ui.add(edit_task(state)).clicked() {
+                            config.update_task(&task_id, &state.id, &state.name);
                             self.post_update = PostUpdate::SaveConfig;
                         }
                     }

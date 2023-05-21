@@ -8,9 +8,9 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct Test {
-    input: String,
-    expected: String,
+pub struct Test {
+    pub input: String,
+    pub expected: String,
 }
 
 impl Test {
@@ -29,26 +29,22 @@ struct Task {
 }
 
 #[derive(Debug)]
-pub struct TaskInfo {
-    pub id: TaskID,
-    pub name: String,
-    pub tests_count: usize,
+pub struct TaskInfo<'a> {
+    pub id: &'a TaskID,
+    pub name: &'a str,
+    pub tests: &'a [Test],
 }
 
-impl TaskInfo {
-    pub fn new<S: Into<String>>(id: S, name: S, tests_count: usize) -> Self {
-        Self {
-            id: id.into(),
-            name: name.into(),
-            tests_count,
-        }
+impl<'a> TaskInfo<'a> {
+    pub fn new(id: &'a TaskID, name: &'a str, tests: &'a [Test]) -> Self {
+        Self { id, name, tests }
     }
     pub fn format(&self) -> String {
         format!(
             "{} - {}, {} tests",
             self.id.to_uppercase(),
             self.name,
-            self.tests_count
+            self.tests.len()
         )
     }
 }
@@ -132,6 +128,14 @@ impl Config {
     pub fn add_task<S: Into<String>>(&mut self, id: &TaskID, name: S) {
         self.tasks.entry(id.to_lowercase()).or_default().name = name.into()
     }
+    pub fn update_task<S: Into<String>>(&mut self, id: &TaskID, new_id: &TaskID, name: S) {
+        let mut task = self.tasks.remove(id.as_str()).unwrap_or_default();
+        task.name = name.into();
+        self.tasks.entry(new_id.to_lowercase()).or_insert(task);
+    }
+    pub fn is_task_exists(&self, id: &TaskID) -> bool {
+        self.tasks.get(id).is_some()
+    }
     pub fn add_test_to_task<S>(&mut self, id: &TaskID, input: S, expected: S)
     where
         S: Into<String>,
@@ -149,7 +153,7 @@ impl Config {
     pub fn tasks(&self) -> impl Iterator<Item = TaskInfo> + '_ {
         self.tasks
             .iter()
-            .map(|(k, v)| TaskInfo::new(k, &v.name, v.tests.len()))
+            .map(|(k, v)| TaskInfo::new(k, &v.name, &v.tests))
     }
 }
 
