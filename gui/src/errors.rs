@@ -23,10 +23,15 @@ pub(crate) enum ErrorKind {
     #[error("{} does not exists", .0.display())]
     PathNotExists(PathBuf),
 
-    #[error("self.config is empty when saving config. {BUG_STR}")]
-    BugConfigEmptyWhenSavingConfig,
-    #[error("self.config_path is empty when saving config. {BUG_STR}")]
-    BugConfigPathEmptyWhenSavingConfig,
+    #[error("cannot build task")]
+    CannotBuildTask,
+    #[error("error running test")]
+    ErrorRunningTest,
+
+    #[error("self.config is empty. {BUG_STR}")]
+    BugConfigEmpty,
+    #[error("self.config_path is empty. {BUG_STR}")]
+    BugConfigPathEmpty,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -47,11 +52,16 @@ pub(crate) enum Error {
     #[error("{0}")]
     PathNotExists(String, PathBuf),
 
+    #[error("{0}")]
+    CannotBuildTask(String),
+    #[error("{0}")]
+    CannotRunTests(String),
+
     // instead of unreachable!()
     #[error("")]
-    BugConfigEmptyWhenSavingConfig,
+    BugConfigEmpty,
     #[error("")]
-    BugConfigPathEmptyWhenSavingConfig,
+    BugConfigPathEmpty,
 }
 
 impl Error {
@@ -64,10 +74,12 @@ impl Error {
             Self::CannotSaveConfig(_) => ErrorKind::CannotSaveConfig,
             Self::CannotOpenConfigInEditor(_) => ErrorKind::CannotOpenConfigInEditor,
             Self::PathNotExists(_, path) => ErrorKind::PathNotExists(path.clone()),
-            Self::BugConfigEmptyWhenSavingConfig => ErrorKind::BugConfigEmptyWhenSavingConfig,
-            Self::BugConfigPathEmptyWhenSavingConfig => {
-                ErrorKind::BugConfigPathEmptyWhenSavingConfig
-            }
+
+            Self::CannotBuildTask(_) => ErrorKind::CannotBuildTask,
+            Error::CannotRunTests(_) => ErrorKind::ErrorRunningTest,
+
+            Self::BugConfigEmpty => ErrorKind::BugConfigEmpty,
+            Self::BugConfigPathEmpty => ErrorKind::BugConfigPathEmpty,
         }
     }
 }

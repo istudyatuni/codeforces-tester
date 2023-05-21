@@ -26,7 +26,7 @@ impl CommandOutput {
     }
 }
 
-pub(crate) fn exec<S>(cmd: S, cwd: &Option<PathBuf>) -> Result<()>
+pub(crate) fn exec<S>(cmd: S, cwd: Option<PathBuf>) -> Result<()>
 where
     S: Into<String>,
 {
@@ -36,7 +36,7 @@ where
         .args(conf.args)
         .current_dir(conf.cwd)
         .status()
-        .map_err(|e| Error::CannotCreateCommand(cmd.into(), e))?;
+        .map_err(|e| Error::CannotCreateCommand(cmd, e))?;
     if status.success() {
         return Ok(());
     }
@@ -47,7 +47,7 @@ where
     }
 }
 
-pub(crate) fn exec_with_io<S>(cmd: S, input: S, cwd: &Option<PathBuf>) -> Result<CommandOutput>
+pub(crate) fn exec_with_io<S>(cmd: S, input: S, cwd: Option<PathBuf>) -> Result<CommandOutput>
 where
     S: Into<String>,
 {
@@ -60,7 +60,7 @@ where
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| Error::CannotCreateCommand(cmd.into(), e))?;
+        .map_err(|e| Error::CannotCreateCommand(cmd, e))?;
     let mut stdin = child.stdin.expect("cannot get stdin");
     let mut stdout = child.stdout.expect("cannot get stdout");
     let mut stderr = child.stderr.expect("cannot get stderr");
@@ -83,7 +83,7 @@ where
     Ok(CommandOutput::new(output, err_output))
 }
 
-fn prepare_exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<CommandConfig> {
+fn prepare_exec<S: Into<String>>(cmd: S, cwd: Option<PathBuf>) -> Result<CommandConfig> {
     let cmd: String = cmd.into();
     let cmd = cmd.split_whitespace();
     let name = match cmd.clone().next() {
@@ -92,7 +92,7 @@ fn prepare_exec<S: Into<String>>(cmd: S, cwd: &Option<PathBuf>) -> Result<Comman
     };
 
     let curdir = current_dir().map_err(Error::CannotGetCwd)?;
-    let cwd = match cwd.clone() {
+    let cwd = match cwd {
         Some(d) => {
             if d.is_absolute() {
                 d

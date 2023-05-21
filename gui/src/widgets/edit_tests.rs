@@ -32,7 +32,7 @@ impl EditTestsState {
 fn edit_tests_ui(ui: &mut Ui, state: &mut EditTestsState) -> Response {
     ui.heading(format!("Edit tests for task {}:", state.id));
 
-    for (i, t) in (&state.tests).iter().enumerate() {
+    for (i, t) in state.tests.iter().enumerate() {
         ui.horizontal(|ui| {
             if ui.button("edit").clicked() {
                 state.edited_test = Some((i, t.clone()));
@@ -47,8 +47,7 @@ fn edit_tests_ui(ui: &mut Ui, state: &mut EditTestsState) -> Response {
         let label = ui.label("Input:");
         ui.code_editor(&mut t.input).labelled_by(label.id);
         let label = ui.label("Expected:");
-        ui.code_editor(&mut t.expected)
-            .labelled_by(label.id);
+        ui.code_editor(&mut t.expected).labelled_by(label.id);
         ui.horizontal(|ui| {
             if ui.button("Save").clicked() {
                 state.response = EditTestsResponse::SaveTest((*i, t.clone()));
@@ -57,10 +56,8 @@ fn edit_tests_ui(ui: &mut Ui, state: &mut EditTestsState) -> Response {
                 cancel_editing = true;
             }
         });
-    } else {
-        if ui.button("Cancel").clicked() {
-            state.response = EditTestsResponse::Cancel;
-        }
+    } else if ui.button("Cancel").clicked() {
+        state.response = EditTestsResponse::Cancel;
     }
     if cancel_editing {
         state.edited_test = None;

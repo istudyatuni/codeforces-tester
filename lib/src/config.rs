@@ -94,22 +94,38 @@ impl Config {
         self.settings.build.build.is_some()
     }
     pub fn build(&self, id: &TaskID) -> Result<()> {
+        self.build_with_cwd(id, &self.settings.build.cwd)
+    }
+    pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
+        self.run_tests_with_cwd(id, &self.settings.build.cwd)
+    }
+    pub fn build_with_cwd(&self, id: &TaskID, cwd: &Option<PathBuf>) -> Result<()> {
+        let cwd = cwd
+            .clone()
+            .and_then(|dir| self.settings.build.cwd.clone().map(|p| dir.join(p)));
         if let Some(build) = &self.settings.build.build {
-            exec(build.replace("{id}", id), &self.settings.build.cwd)?;
+            exec(build.replace("{id}", id), cwd)?;
         }
         Ok(())
     }
-    pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
+    pub fn run_tests_with_cwd<'s>(
+        &'s self,
+        id: &'s TaskID,
+        cwd: &'s Option<PathBuf>,
+    ) -> impl IntoIterator<Item = TestResult> + 's {
         let tests = self
             .tasks
             .get(id)
             .map(|t| t.tests.clone())
             .unwrap_or_default();
-        tests.into_iter().enumerate().map(|(i, test)| {
+        let cwd = cwd
+            .clone()
+            .and_then(|dir| self.settings.build.cwd.clone().map(|p| dir.join(p)));
+        tests.into_iter().enumerate().map(move |(i, test)| {
             let output = exec_with_io(
                 self.settings.build.run.replace("{id}", id),
                 test.input,
-                &self.settings.build.cwd,
+                cwd.clone(),
             );
             let output = match output {
                 Ok(c) => c,
@@ -146,13 +162,13 @@ impl Config {
             .tests
             .push(Test::new(input, expected))
     }
-    pub fn update_test(&mut self, id: &TaskID, index: usize, test: Test) {
+    pub fn update_test(&mut self, id: &TaskID, index: usize, mut test: Test) {
         self.tasks
             .entry(id.into())
             .or_default()
             .tests
             .get_mut(index)
-            .map(|t| *t = test);
+            .replace(&mut test);
     }
     pub fn save_config_to(&self, path: &PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;

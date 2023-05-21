@@ -3,7 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 use eframe::egui::{self, Link, RichText, Ui};
 use rfd::FileDialog;
 
-use lib::{Config, TaskID};
+use lib::{Config, Error as LibError, TaskID, TestResult};
 
 use crate::errors::{Error, ErrorKind, ErrorsMap};
 use crate::widgets::{
@@ -17,7 +17,7 @@ pub(crate) const CONFIG_PATH_STORAGE_KEY: &str = "config_path";
 pub(crate) struct App {
     config_path: Option<PathBuf>,
     config: Option<Config>,
-    edit_state: EditState,
+    app_state: AppState,
     post_update: PostUpdate,
     errors: ErrorsMap,
 }
@@ -32,12 +32,13 @@ impl App {
 }
 
 #[derive(Debug, Default)]
-enum EditState {
+enum AppState {
     AddTask(AddTaskState),
     EditTask(TaskID, EditTaskState),
     AddTest(TaskID, AddTestState),
     EditTests(TaskID, EditTestsState),
 
+    ShowTestsResults(Vec<TestResult>),
     Msg(String),
     #[default]
     None,
@@ -48,6 +49,7 @@ enum PostUpdate {
     SaveConfig,
     OpenConfigInEditor,
     CancelOperation,
+    RunTests(TaskID),
     #[default]
     None,
 }
@@ -58,13 +60,12 @@ impl eframe::App for App {
             egui::ScrollArea::both()
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
-                    self.post_update = Default::default();
-
                     self.config_select_ui(ui);
                     self.config_content_ui(ui);
-                    self.bottom_edit_ui(ui);
-                    self.handle_post_update();
+                    self.app_state_ui(ui);
                     self.errors_ui(ui);
+
+                    self.handle_post_update();
                 });
         });
     }
@@ -117,31 +118,34 @@ impl App {
                 for t in config.tasks() {
                     ui.horizontal(|ui| {
                         if ui.button("edit").clicked() {
-                            self.edit_state =
-                                EditState::EditTask(t.id.clone(), EditTaskState::new(t.id, t.name));
+                            self.app_state =
+                                AppState::EditTask(t.id.clone(), EditTaskState::new(t.id, t.name));
                         }
                         if ui.button("add test").clicked() {
-                            self.edit_state =
-                                EditState::AddTest(t.id.clone(), AddTestState::default());
+                            self.app_state =
+                                AppState::AddTest(t.id.clone(), AddTestState::default());
                         }
                         if ui.button("edit tests").clicked() {
-                            self.edit_state = EditState::EditTests(
+                            self.app_state = AppState::EditTests(
                                 t.id.clone(),
                                 EditTestsState::new(t.id, t.tests),
                             );
+                        }
+                        if ui.button(RichText::new("run tests").strong()).clicked() {
+                            self.post_update = PostUpdate::RunTests(t.id.clone());
                         }
                         ui.label(RichText::new(t.format()).strong());
                     });
                 }
                 if ui.button("Add task").clicked() {
-                    self.edit_state = EditState::AddTask(AddTaskState::default());
+                    self.app_state = AppState::AddTask(AddTaskState::default());
                 }
             }
         }
     }
-    fn bottom_edit_ui(&mut self, ui: &mut Ui) {
-        match &mut self.edit_state {
-            EditState::AddTask(ref mut state) => {
+    fn app_state_ui(&mut self, ui: &mut Ui) {
+        match &mut self.app_state {
+            AppState::AddTask(ref mut state) => {
                 if ui.add(add_task(state)).clicked() {
                     if let Some(ref mut config) = self.config {
                         config.add_task(&state.id, &state.name);
@@ -149,16 +153,16 @@ impl App {
                     }
                 }
             }
-            EditState::EditTask(task_id, ref mut state) => {
+            AppState::EditTask(task_id, ref mut state) => {
                 if let Some(ref mut config) = self.config {
                     state.is_task_exists = config.is_task_exists(&state.id);
                     if ui.add(edit_task(state)).clicked() {
-                        config.update_task(&task_id, &state.id, &state.name);
+                        config.update_task(task_id, &state.id, &state.name);
                         self.post_update = PostUpdate::SaveConfig;
                     }
                 }
             }
-            EditState::AddTest(task_id, ref mut state) => {
+            AppState::AddTest(task_id, ref mut state) => {
                 if ui.add(add_test(state, task_id.clone())).clicked() {
                     if let Some(ref mut config) = self.config {
                         config.add_test_to_task(task_id, &state.input, &state.expected);
@@ -166,12 +170,12 @@ impl App {
                     }
                 }
             }
-            EditState::EditTests(task_id, ref mut state) => {
+            AppState::EditTests(task_id, ref mut state) => {
                 ui.add(edit_tests(state));
                 match &state.response {
                     EditTestsResponse::SaveTest((i, test)) => {
                         if let Some(ref mut config) = self.config {
-                            config.update_test(&task_id, *i, test.clone());
+                            config.update_test(task_id, *i, test.clone());
                             self.post_update = PostUpdate::SaveConfig;
                         }
                     }
@@ -179,20 +183,50 @@ impl App {
                     EditTestsResponse::None => (),
                 }
             }
-            EditState::Msg(msg) => {
+            AppState::ShowTestsResults(results) => {
+                for (i, res) in results.iter().enumerate() {
+                    match res {
+                        TestResult::Ok => {
+                            ui.label(format!("test {} ok", i + 1));
+                        }
+                        TestResult::Failed(f) => {
+                            ui.collapsing(format!("test {} failed:", f.index + 1), |ui| {
+                                ui.strong("Expected output:");
+                                ui.monospace(&f.expected);
+                                ui.strong("Actual output:");
+                                ui.monospace(f.cmd_output.stdout.trim());
+                                if !f.cmd_output.stderr.is_empty() {
+                                    ui.strong("Stderr:");
+                                    ui.monospace(f.cmd_output.stderr.trim());
+                                }
+                            });
+                        }
+                        TestResult::Err(e) => {
+                            self.errors.add(Error::CannotRunTests(e.to_string()));
+                            break;
+                        }
+                    };
+                }
+            }
+            AppState::Msg(msg) => {
                 ui.label(msg.clone());
             }
-            EditState::None => (),
+            AppState::None => (),
         }
     }
     fn errors_ui(&mut self, ui: &mut Ui) {
         if !self.errors.is_empty() {
+            let mut skip_show_errors = false;
             ui.horizontal(|ui| {
                 ui.heading("An errors occured:");
                 if ui.button("Clear").clicked() {
-                    return self.errors.clear();
+                    self.errors.clear();
+                    skip_show_errors = true;
                 }
             });
+            if skip_show_errors {
+                return;
+            }
             for (kind, e) in &self.errors {
                 ui.label(format!("{kind}: {e}"));
             }
@@ -264,33 +298,30 @@ impl App {
             };
 
             self.config = Some(config);
-            self.edit_state = Default::default();
+            self.cancel_operation();
         }
     }
     fn save_config(&mut self) {
-        self.errors
-            .delete(ErrorKind::BugConfigPathEmptyWhenSavingConfig);
+        self.errors.delete(ErrorKind::BugConfigPathEmpty);
         let Some(config_path) = &self.config_path else {
-            return self.errors.add(Error::BugConfigPathEmptyWhenSavingConfig)
+            return self.errors.add(Error::BugConfigPathEmpty)
         };
 
-        self.errors
-            .delete(ErrorKind::BugConfigEmptyWhenSavingConfig);
+        self.errors.delete(ErrorKind::BugConfigEmpty);
         let Some(config) = &self.config else {
-            return self.errors.add(Error::BugConfigEmptyWhenSavingConfig)
+            return self.errors.add(Error::BugConfigEmpty)
         };
 
         self.errors.delete(ErrorKind::CannotSaveConfig);
         match config.save_config_to(config_path) {
-            Ok(_) => self.edit_state = EditState::Msg("Config saved".into()),
+            Ok(_) => self.app_state = AppState::Msg("Config saved".into()),
             Err(e) => self.errors.add(Error::CannotSaveConfig(e.to_string())),
         }
     }
     fn open_config_in_editor(&mut self) {
-        self.errors
-            .delete(ErrorKind::BugConfigEmptyWhenSavingConfig);
+        self.errors.delete(ErrorKind::BugConfigEmpty);
         let Some(config_path) = &self.config_path else {
-            return self.errors.add(Error::BugConfigEmptyWhenSavingConfig);
+            return self.errors.add(Error::BugConfigEmpty);
         };
 
         self.errors.delete(ErrorKind::CannotOpenConfigInEditor);
@@ -307,12 +338,51 @@ impl App {
         }
     }
 
+    fn run_tests(&mut self, id: TaskID) {
+        self.errors.delete(ErrorKind::BugConfigEmpty);
+        let Some(config) = &self.config else {
+            return self.errors.add(Error::BugConfigEmpty);
+        };
+
+        self.errors.delete(ErrorKind::BugConfigPathEmpty);
+        let Some(config_path) = &self.config_path else {
+            return self.errors.add(Error::BugConfigPathEmpty);
+        };
+
+        match config.check_task(&id) {
+            Ok(_) => (),
+            Err(e) => {
+                if let LibError::TaskHasNoTests(_) = e {
+                    return self.app_state = AppState::Msg("No tests".into());
+                }
+            }
+        }
+
+        let dir = config_path.parent().map(|p| p.into());
+
+        self.errors.delete(ErrorKind::CannotBuildTask);
+        if config.should_build() {
+            match config.build_with_cwd(&id, &dir) {
+                Ok(_) => (),
+                Err(e) => return self.errors.add(Error::CannotBuildTask(e.to_string())),
+            }
+        }
+
+        let results: Vec<TestResult> = config.run_tests_with_cwd(&id, &dir).into_iter().collect();
+        self.app_state = AppState::ShowTestsResults(results);
+    }
+
     fn handle_post_update(&mut self) {
-        match self.post_update {
+        match &self.post_update {
             PostUpdate::SaveConfig => self.save_config(),
             PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
-            PostUpdate::CancelOperation => self.edit_state = Default::default(),
+            PostUpdate::CancelOperation => self.cancel_operation(),
+            PostUpdate::RunTests(id) => self.run_tests(id.clone()),
             PostUpdate::None => (),
         }
+        self.post_update = Default::default();
+    }
+    fn cancel_operation(&mut self) {
+        self.app_state = Default::default()
     }
 }
