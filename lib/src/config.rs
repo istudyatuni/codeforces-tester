@@ -156,9 +156,6 @@ impl Config {
         task.name = name.into();
         self.tasks.entry(new_id.to_lowercase()).or_insert(task);
     }
-    pub fn is_task_exists(&self, id: &TaskID) -> bool {
-        self.tasks.get(id).is_some()
-    }
     pub fn add_test_to_task<S>(&mut self, id: &TaskID, input: S, expected: S)
     where
         S: Into<String>,

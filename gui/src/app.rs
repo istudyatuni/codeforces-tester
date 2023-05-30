@@ -95,8 +95,7 @@ impl App {
                 self.create_default_config();
             }
         });
-    }
-    fn config_content_ui(&mut self, ui: &mut Ui) {
+
         if let Some(config_path) = &self.config_path {
             ui.horizontal(|ui| {
                 ui.label("Config:");
@@ -109,37 +108,36 @@ impl App {
                     self.post_update = PostUpdate::OpenConfigInEditor;
                 }
             });
-            if self.config.is_none() {
-                self.read_config();
-            }
+        }
+    }
+    fn config_content_ui(&mut self, ui: &mut Ui) {
+        if self.config.is_none() {
+            self.read_config();
+        }
 
-            if let Some(config) = &self.config {
-                ui.heading("Tasks");
-                for t in config.tasks() {
-                    ui.horizontal(|ui| {
-                        if ui.button("edit").clicked() {
-                            self.app_state =
-                                AppState::EditTask(t.id.clone(), EditTaskState::new(t.id, t.name));
-                        }
-                        if ui.button("add test").clicked() {
-                            self.app_state =
-                                AppState::AddTest(t.id.clone(), AddTestState::default());
-                        }
-                        if ui.button("edit tests").clicked() {
-                            self.app_state = AppState::EditTests(
-                                t.id.clone(),
-                                EditTestsState::new(t.id, t.tests),
-                            );
-                        }
-                        if ui.button(RichText::new("run tests").strong()).clicked() {
-                            self.post_update = PostUpdate::RunTests(t.id.clone());
-                        }
-                        ui.label(RichText::new(t.format()).strong());
-                    });
-                }
-                if ui.button("Add task").clicked() {
-                    self.app_state = AppState::AddTask(AddTaskState::default());
-                }
+        if let Some(config) = &self.config {
+            ui.heading("Tasks");
+            for t in config.tasks() {
+                ui.horizontal(|ui| {
+                    if ui.button("edit").clicked() {
+                        self.app_state =
+                            AppState::EditTask(t.id.clone(), EditTaskState::new(t.id, t.name));
+                    }
+                    if ui.button("add test").clicked() {
+                        self.app_state = AppState::AddTest(t.id.clone(), AddTestState::default());
+                    }
+                    if ui.button("edit tests").clicked() {
+                        self.app_state =
+                            AppState::EditTests(t.id.clone(), EditTestsState::new(t.id, t.tests));
+                    }
+                    if ui.button(RichText::new("run tests").strong()).clicked() {
+                        self.post_update = PostUpdate::RunTests(t.id.clone());
+                    }
+                    ui.label(RichText::new(t.format()).strong());
+                });
+            }
+            if ui.button("Add task").clicked() {
+                self.app_state = AppState::AddTask(AddTaskState::default());
             }
         }
     }
@@ -155,7 +153,6 @@ impl App {
             }
             AppState::EditTask(task_id, ref mut state) => {
                 if let Some(ref mut config) = self.config {
-                    state.is_task_exists = config.is_task_exists(&state.id);
                     if ui.add(edit_task(state)).clicked() {
                         config.update_task(task_id, &state.id, &state.name);
                         self.post_update = PostUpdate::SaveConfig;
@@ -191,10 +188,17 @@ impl App {
                         }
                         TestResult::Failed(f) => {
                             ui.collapsing(format!("test {} failed:", f.index + 1), |ui| {
-                                ui.strong("Expected output:");
-                                ui.monospace(&f.expected);
-                                ui.strong("Actual output:");
-                                ui.monospace(f.cmd_output.stdout.trim());
+                                ui.horizontal(|ui| {
+                                    ui.vertical(|ui| {
+                                        ui.strong("Expected output:");
+                                        ui.monospace(&f.expected);
+                                    });
+                                    ui.separator();
+                                    ui.vertical(|ui| {
+                                        ui.strong("Actual output:");
+                                        ui.monospace(f.cmd_output.stdout.trim());
+                                    });
+                                });
                                 if !f.cmd_output.stderr.is_empty() {
                                     ui.strong("Stderr:");
                                     ui.monospace(f.cmd_output.stderr.trim());
@@ -228,7 +232,11 @@ impl App {
                 return;
             }
             for (kind, e) in &self.errors {
-                ui.label(format!("{kind}: {e}"));
+                match (kind.to_string().as_str(), e.to_string().as_str()) {
+                    ("", "") => ui.label("an error occured"),
+                    (e, "") | ("", e) => ui.label(format!("an error occured: {e}")),
+                    (kind, e) => ui.label(format!("{kind}: {e}")),
+                };
             }
         }
     }
@@ -298,7 +306,7 @@ impl App {
             };
 
             self.config = Some(config);
-            self.cancel_operation();
+            self.clear_app_state();
         }
     }
     fn save_config(&mut self) {
@@ -376,13 +384,13 @@ impl App {
         match &self.post_update {
             PostUpdate::SaveConfig => self.save_config(),
             PostUpdate::OpenConfigInEditor => self.open_config_in_editor(),
-            PostUpdate::CancelOperation => self.cancel_operation(),
+            PostUpdate::CancelOperation => self.clear_app_state(),
             PostUpdate::RunTests(id) => self.run_tests(id.clone()),
             PostUpdate::None => (),
         }
         self.post_update = Default::default();
     }
-    fn cancel_operation(&mut self) {
+    fn clear_app_state(&mut self) {
         self.app_state = Default::default()
     }
 }
