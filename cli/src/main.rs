@@ -69,7 +69,13 @@ fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
     );
     if config.should_build() {
         println!("Building");
-        config.build(&id)?;
+        let output = config.build(&id)?;
+        if let Some(output) = output {
+            if !output.success {
+                eprintln!("{}", output.stderr);
+                return Ok(());
+            }
+        }
     }
     println!("Testing");
     let mut failed = vec![];

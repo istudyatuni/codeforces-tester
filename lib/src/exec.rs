@@ -18,59 +18,52 @@ struct CommandConfig {
 pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
+    pub success: bool,
 }
 
 impl CommandOutput {
-    fn new(stdout: String, stderr: String) -> Self {
-        Self { stdout, stderr }
+    fn new(stdout: String, stderr: String, success: bool) -> Self {
+        Self {
+            stdout,
+            stderr,
+            success,
+        }
     }
 }
 
-pub(crate) fn exec<S>(cmd: S, cwd: Option<PathBuf>) -> Result<()>
+pub(crate) fn exec<S>(cmd: S, input: Option<S>, cwd: Option<PathBuf>) -> Result<CommandOutput>
 where
     S: Into<String>,
 {
     let cmd: String = cmd.into();
     let conf = prepare_exec(&cmd, cwd)?;
-    let status = Command::new(conf.name)
+    let stdin = if input.is_some() {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    };
+    let mut child = Command::new(conf.name)
         .args(conf.args)
         .current_dir(conf.cwd)
-        .status()
-        .map_err(|e| Error::CannotCreateCommand(cmd, e))?;
-    if status.success() {
-        return Ok(());
-    }
-
-    match status.code() {
-        Some(c) => Err(Error::CommandExited(c)),
-        None => Err(Error::CommandTerminated),
-    }
-}
-
-pub(crate) fn exec_with_io<S>(cmd: S, input: S, cwd: Option<PathBuf>) -> Result<CommandOutput>
-where
-    S: Into<String>,
-{
-    let cmd: String = cmd.into();
-    let conf = prepare_exec(&cmd, cwd)?;
-    let child = Command::new(conf.name)
-        .args(conf.args)
-        .current_dir(conf.cwd)
-        .stdin(Stdio::piped())
+        .stdin(stdin)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| Error::CannotCreateCommand(cmd, e))?;
-    let mut stdin = child.stdin.expect("cannot get stdin");
-    let mut stdout = child.stdout.expect("cannot get stdout");
-    let mut stderr = child.stderr.expect("cannot get stderr");
-    let input: String = input.into();
+    let mut stdout = child.stdout.take().expect("cannot get stdout");
+    let mut stderr = child.stderr.take().expect("cannot get stderr");
 
-    stdin
-        .write(input.as_bytes())
-        .map_err(Error::CannotWriteToStdin)?;
-    // close stdin
-    drop(stdin);
+    if let Some(input) = input {
+        let mut stdin = child.stdin.take().expect("cannot get stdin");
+        let input: String = input.into();
+
+        stdin
+            .write(input.as_bytes())
+            .map_err(Error::CannotWriteToStdin)?;
+        // close stdin
+        drop(stdin);
+    }
+
     let mut output = String::new();
     stdout
         .read_to_string(&mut output)
@@ -80,7 +73,8 @@ where
         .read_to_string(&mut err_output)
         .map_err(Error::CannotReadFromStderr)?;
 
-    Ok(CommandOutput::new(output, err_output))
+    let is_success = child.wait().map(|s| s.success()).unwrap_or(false);
+    Ok(CommandOutput::new(output, err_output, is_success))
 }
 
 fn prepare_exec<S: Into<String>>(cmd: S, cwd: Option<PathBuf>) -> Result<CommandConfig> {

@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fs::write as write_file, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    exec::{exec, exec_with_io, CommandOutput},
+    exec::{exec, CommandOutput},
     Error, Result, TaskID,
 };
 
@@ -93,18 +93,19 @@ impl Config {
     pub fn should_build(&self) -> bool {
         self.settings.build.build.is_some()
     }
-    pub fn build(&self, id: &TaskID) -> Result<()> {
+    pub fn build(&self, id: &TaskID) -> Result<Option<CommandOutput>> {
         self.build_from_dir(id, &self.settings.build.cwd)
     }
     pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
         self.run_tests_from_dir(id, &self.settings.build.cwd)
     }
-    pub fn build_from_dir(&self, id: &TaskID, dir: &Option<PathBuf>) -> Result<()> {
+    pub fn build_from_dir(&self, id: &TaskID, dir: &Option<PathBuf>) -> Result<Option<CommandOutput>> {
         let cwd = self.prepare_from_dir(dir);
         if let Some(build) = &self.settings.build.build {
-            exec(build.replace("{id}", id), cwd)?;
+            let out = exec(build.replace("{id}", id), None, cwd)?;
+            return Ok(Some(out));
         }
-        Ok(())
+        Ok(None)
     }
     pub fn run_tests_from_dir<'s>(
         &'s self,
@@ -118,9 +119,9 @@ impl Config {
             .unwrap_or_default();
         let cwd = self.prepare_from_dir(dir);
         tests.into_iter().enumerate().map(move |(i, test)| {
-            let output = exec_with_io(
+            let output = exec(
                 self.settings.build.run.replace("{id}", id),
-                test.input,
+                Some(test.input),
                 cwd.clone(),
             );
             let output = match output {

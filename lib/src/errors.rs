@@ -6,10 +6,6 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     #[error("empty command")]
     EmptyCommand,
-    #[error("command exited with code {0}")]
-    CommandExited(i32),
-    #[error("command terminated")]
-    CommandTerminated,
 
     #[error("cannot create command \"{0}\": {1}")]
     CannotCreateCommand(String, IOError),

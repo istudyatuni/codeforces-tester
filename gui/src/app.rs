@@ -371,7 +371,15 @@ impl App {
         self.errors.delete(ErrorKind::CannotBuildTask);
         if config.should_build() {
             match config.build_from_dir(&id, &dir) {
-                Ok(_) => (),
+                Ok(output) => {
+                    if let Some(output) = output {
+                        if !output.success {
+                            return self
+                                .errors
+                                .add(Error::CannotBuildTask("\n".to_owned() + &output.stderr));
+                        }
+                    }
+                }
                 Err(e) => return self.errors.add(Error::CannotBuildTask(e.to_string())),
             }
         }
