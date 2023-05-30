@@ -99,7 +99,11 @@ impl Config {
     pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
         self.run_tests_from_dir(id, &self.settings.build.cwd)
     }
-    pub fn build_from_dir(&self, id: &TaskID, dir: &Option<PathBuf>) -> Result<Option<CommandOutput>> {
+    pub fn build_from_dir(
+        &self,
+        id: &TaskID,
+        dir: &Option<PathBuf>,
+    ) -> Result<Option<CommandOutput>> {
         let cwd = self.prepare_from_dir(dir);
         if let Some(build) = &self.settings.build.build {
             let out = exec(build.replace("{id}", id), None, cwd)?;

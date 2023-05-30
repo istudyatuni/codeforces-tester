@@ -4,5 +4,14 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"settings": {
+		"LSP": {
+			"rust-analyzer": {
+				"settings": {
+					"rust-analyzer.cargo.features": "all"
+				}
+			}
+		}
+	}
 }

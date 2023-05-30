@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Subcommand};
 use lib::TaskID;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Args)]
 #[command(author, version, about, long_about = None)]
-pub(crate) struct Cli {
+pub struct Cli {
     #[arg(long, default_value = "cdf.toml")]
     /// Path to config
     config: PathBuf,

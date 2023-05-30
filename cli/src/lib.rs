@@ -1,11 +1,12 @@
 use std::fs::read_to_string;
 
 use anyhow::Result;
-use clap::Parser;
 
-use args::{Cli, Commands};
+use args::Commands;
 use input::{read_line_with_prompt, read_until_eof_with_prompt};
 use lib::{Config, FailedTest, TaskID, TestResult};
+
+pub use args::Cli;
 
 mod args;
 mod input;
@@ -15,8 +16,7 @@ const EOF_KEYBOARD: &str = "Ctrl+D";
 #[cfg(target_family = "windows")]
 const EOF_KEYBOARD: &str = "Ctrl+Z";
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
+pub fn main(cli: &Cli) -> Result<()> {
     let config_path = cli.config().clone();
     if let Some(Commands::CreateDefault) = cli.command {
         Config::default().save_config_to(&config_path)?;
@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let config = read_to_string(&config_path)?;
     let mut config = Config::try_from(config.as_str())?;
 
-    let Some(command) = cli.command else {
+    let Some(command) = &cli.command else {
         return Ok(());
     };
     match command {
@@ -60,16 +60,16 @@ fn ask_and_add_task(config: &mut Config) -> Result<()> {
     Ok(())
 }
 
-fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
-    config.check_task(&id)?;
+fn run_task_tests(config: &Config, id: &TaskID) -> Result<()> {
+    config.check_task(id)?;
     println!(
         "Task {} - {}",
         id.to_uppercase(),
-        config.get_task_name(&id).unwrap_or("unnamed task".into())
+        config.get_task_name(id).unwrap_or("unnamed task".into())
     );
     if config.should_build() {
         println!("Building");
-        let output = config.build(&id)?;
+        let output = config.build(id)?;
         if let Some(output) = output {
             if !output.success {
                 eprintln!("{}", output.stderr);
@@ -79,7 +79,7 @@ fn run_task_tests(config: &Config, id: TaskID) -> Result<()> {
     }
     println!("Testing");
     let mut failed = vec![];
-    for res in config.run_tests(&id) {
+    for res in config.run_tests(id) {
         match res as TestResult {
             TestResult::Ok => print!("."),
             TestResult::Failed(f) => {
