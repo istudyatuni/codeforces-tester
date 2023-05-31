@@ -7,7 +7,7 @@ Run test for your codeforces solutions
 Install [rustup](https://rustup.rs), clone this repository, then from inside this repo:
 
 ```sh
-cargo install --path=cli
+cargo install --features=gui --path=.
 ```
 
 ## Configuration
@@ -23,3 +23,7 @@ To test task with specified id, run:
 ```sh
 cdf test [id]
 ```
+
+---
+
+See also [FAQ.md](docs/FAQ.md)

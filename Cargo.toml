@@ -17,11 +17,11 @@ path = "src/main.rs"
 
 [features]
 default = []
-cli = ["dep:cli"]
 gui = ["dep:gui"]
 
 [dependencies]
 anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive"] }
-cli = { path = "cli", package = "codeforces-tester-cli", optional = true }
+clap_complete = "4.3.0"
+cli = { path = "cli", package = "codeforces-tester-cli" }
 gui = { path = "gui", package = "codeforces-tester-gui", optional = true }
