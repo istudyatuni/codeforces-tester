@@ -94,17 +94,18 @@ impl Config {
         self.settings.build.build.is_some()
     }
     pub fn build(&self, id: &TaskID) -> Result<Option<CommandOutput>> {
-        self.build_from_dir(id, &self.settings.build.cwd)
+        // None because we running from current terminal directory + cwd from config
+        self.build_from_dir(id, &None)
     }
     pub fn run_tests<'s>(&'s self, id: &'s TaskID) -> impl IntoIterator<Item = TestResult> + 's {
-        self.run_tests_from_dir(id, &self.settings.build.cwd)
+        self.run_tests_from_dir(id, &None)
     }
     pub fn build_from_dir(
         &self,
         id: &TaskID,
-        dir: &Option<PathBuf>,
+        config_dir: &Option<PathBuf>,
     ) -> Result<Option<CommandOutput>> {
-        let cwd = self.prepare_from_dir(dir);
+        let cwd = self.prepare_from_dir(config_dir);
         if let Some(build) = &self.settings.build.build {
             let out = exec(build.replace("{id}", id), None, cwd)?;
             return Ok(Some(out));
