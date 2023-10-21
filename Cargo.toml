@@ -21,7 +21,7 @@ gui = ["dep:gui"]
 
 [dependencies]
 anyhow = "1.0.71"
-clap = { version = "4.3.0", features = ["derive"] }
-clap_complete = "4.3.0"
+clap = { version = "4.4.6", features = ["derive"] }
+clap_complete = "4.4.3"
 cli = { path = "cli", package = "codeforces-tester-cli" }
 gui = { path = "gui", package = "codeforces-tester-gui", optional = true }
