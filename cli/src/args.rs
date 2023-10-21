@@ -32,7 +32,11 @@ pub(crate) enum Commands {
     /// Format config file
     #[clap(name = "fmt")]
     Format,
-    /// Create default config
-    #[clap(name = "create-default")]
-    CreateDefault,
+    /// Initialize default config in current directory
+    #[clap(name = "init")]
+    Init {
+        /// Use sample config instead of minimal
+        #[arg(long)]
+        sample: bool,
+    },
 }

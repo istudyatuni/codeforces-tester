@@ -15,16 +15,15 @@ impl Args {
         &self.cli
     }
     pub(crate) fn generate_completions(&self) -> Result<(), ()> {
-        if let Some(ArgsCommand::Completions { sh }) = &self.command {
-            match sh {
-                ShellVariant::Bash => generate_completions(shells::Bash),
-                ShellVariant::Fish => generate_completions(shells::Fish),
-                ShellVariant::Zsh => generate_completions(shells::Zsh),
-            };
-            Ok(())
-        } else {
-            Err(())
-        }
+        let Some(ArgsCommand::Completions { sh }) = &self.command else {
+            return Err(());
+        };
+        match sh {
+            ShellVariant::Bash => generate_completions(shells::Bash),
+            ShellVariant::Fish => generate_completions(shells::Fish),
+            ShellVariant::Zsh => generate_completions(shells::Zsh),
+        };
+        Ok(())
     }
     #[cfg(feature = "gui")]
     pub(crate) fn is_call_gui(&self) -> bool {

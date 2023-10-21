@@ -254,7 +254,7 @@ impl App {
 
         self.errors.delete(ErrorKind::CannotSelectConfig);
         let Some(path) = picker.pick_file() else {
-            return self.errors.add(Error::CannotSelectConfig)
+            return self.errors.add(Error::CannotSelectConfig);
         };
 
         self.config_path = Some(path);
@@ -271,7 +271,7 @@ impl App {
         self.errors
             .delete(ErrorKind::CannotSelectPathForSavingConfig);
         let Some(path) = saver.save_file() else {
-            return self.errors.add(Error::CannotSelectPathForSavingConfig)
+            return self.errors.add(Error::CannotSelectPathForSavingConfig);
         };
 
         self.config_path = Some(path);
@@ -312,12 +312,12 @@ impl App {
     fn save_config(&mut self) {
         self.errors.delete(ErrorKind::BugConfigPathEmpty);
         let Some(config_path) = &self.config_path else {
-            return self.errors.add(Error::BugConfigPathEmpty)
+            return self.errors.add(Error::BugConfigPathEmpty);
         };
 
         self.errors.delete(ErrorKind::BugConfigEmpty);
         let Some(config) = &self.config else {
-            return self.errors.add(Error::BugConfigEmpty)
+            return self.errors.add(Error::BugConfigEmpty);
         };
 
         self.errors.delete(ErrorKind::CannotSaveConfig);

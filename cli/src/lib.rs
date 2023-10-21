@@ -18,8 +18,13 @@ const EOF_KEYBOARD: &str = "Ctrl+Z";
 
 pub fn main(cli: &Cli) -> Result<()> {
     let config_path = cli.config().clone();
-    if let Some(Commands::CreateDefault) = cli.command {
-        Config::default().save_config_to(&config_path)?;
+    if let Some(Commands::Init { sample }) = cli.command {
+        if sample {
+            Config::save_sample_to(&config_path)?;
+        } else {
+            Config::default().save_config_to(&config_path)?;
+        }
+        println!("Config saved to {}", config_path.display());
     }
     config_path.try_exists()?;
     let config = read_to_string(&config_path)?;
@@ -36,7 +41,7 @@ pub fn main(cli: &Cli) -> Result<()> {
         }
         Commands::Test { id } => run_task_tests(&config, id)?,
         Commands::Format => config.save_config_to(&config_path)?,
-        Commands::CreateDefault => (),
+        Commands::Init { .. } => (),
     }
 
     Ok(())

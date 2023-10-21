@@ -181,15 +181,23 @@ impl Config {
             .get_mut(index)
             .map(|t| *t = test);
     }
+    pub fn save_sample_to(path: &PathBuf) -> Result<()> {
+        let s = include_str!("../../docs/cdf.toml");
+        save_config_to(s, path)
+    }
     pub fn save_config_to(&self, path: &PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
-        write_file(path, content.as_bytes()).map_err(Error::CannotSaveConfig)
+        save_config_to(&content, path)
     }
     pub fn tasks(&self) -> impl Iterator<Item = TaskInfo> + '_ {
         self.tasks
             .iter()
             .map(|(k, v)| TaskInfo::new(k, &v.name, &v.tests))
     }
+}
+
+fn save_config_to(s: &str, path: &PathBuf) -> Result<()> {
+    write_file(path, s.as_bytes()).map_err(Error::CannotSaveConfig)
 }
 
 #[derive(Debug)]

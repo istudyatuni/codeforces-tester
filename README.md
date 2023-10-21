@@ -10,13 +10,13 @@ Install [rustup](https://rustup.rs), clone this repository, then from inside thi
 cargo install --features=gui --path=.
 ```
 
-## Configuration
-
-See [example config](docs/cdf.toml) for explanation of config format.
-
 ## Usage
 
-Copy [example config](docs/cdf.toml) to the folder where you will run the tests, and change for your use.
+Initialize config
+
+```sh
+cdf init --sample
+```
 
 To test task with specified id, run:
 
