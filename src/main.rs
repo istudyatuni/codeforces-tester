@@ -22,5 +22,5 @@ fn run() -> anyhow::Result<(), String> {
         return gui::main().map_err(|e| e.to_string());
     }
 
-    return cli::main(args.cli()).map_err(|e| e.to_string());
+    cli::main(args.cli()).map_err(|e| e.to_string())
 }
