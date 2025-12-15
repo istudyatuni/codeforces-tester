@@ -68,7 +68,9 @@ struct BuildSettings {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default)]
     settings: Settings,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     tasks: BTreeMap<TaskID, Task>,
 }
 
@@ -189,7 +191,7 @@ impl Config {
         let content = toml::to_string_pretty(self)?;
         save_config_to(&content, path)
     }
-    pub fn tasks(&self) -> impl Iterator<Item = TaskInfo> + '_ {
+    pub fn tasks(&self) -> impl Iterator<Item = TaskInfo<'_>> + '_ {
         self.tasks
             .iter()
             .map(|(k, v)| TaskInfo::new(k, &v.name, &v.tests))
