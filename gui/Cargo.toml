@@ -4,10 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-anyhow = "1.0.71"
-eframe = { version = "0.21.3", features = ["persistence"] }
-env_logger = "0.10.0"
+anyhow = "1.0.100"
+eframe = { version = "0.33.3", features = [ "persistence" ] }
+env_logger = "0.11.8"
 lib = { path = "../lib", package = "codeforces-tester-lib" }
-open = "4.1.0"
-rfd = "0.11.3"
-thiserror = "1.0.40"
+open = "5.3.3"
+rfd = "0.16.0"
+thiserror = "2.0.17"
