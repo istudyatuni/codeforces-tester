@@ -8,7 +8,7 @@ pub(crate) fn read_line_with_prompt(prompt: &str) -> Result<String> {
 
     let mut buf = String::new();
     stdin().read_line(&mut buf)?;
-    Ok(buf)
+    Ok(buf.trim().to_string())
 }
 
 pub(crate) fn read_until_eof_with_prompt(prompt: &str) -> Result<String> {
@@ -17,5 +17,9 @@ pub(crate) fn read_until_eof_with_prompt(prompt: &str) -> Result<String> {
 
     let mut buf = String::new();
     stdin().read_to_string(&mut buf)?;
-    Ok(buf)
+    if buf.trim().contains("\n") {
+        Ok(buf)
+    } else {
+        Ok(buf.trim().to_string())
+    }
 }
