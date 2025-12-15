@@ -17,7 +17,7 @@ const GUI_SCALE: f32 = 1.5;
 pub fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(730.0, 420.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([730.0, 420.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -29,7 +29,7 @@ pub fn main() -> Result<(), eframe::Error> {
                 .storage
                 .and_then(|s| s.get_string(CONFIG_PATH_STORAGE_KEY))
                 .map(Into::into);
-            Box::new(App::new(config_path))
+            Ok(Box::new(App::new(config_path)))
         }),
     )
 }
